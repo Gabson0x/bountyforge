@@ -1,16 +1,17 @@
-#  BountyForge
+  
+# bountyforge
 
-> All-round bug bounty skill for Claude Code — parallelized agents for smart contract audits (EVM, Move, Solana, TRON), web/API security, and submission-ready reports for HackerOne, Bugcrowd, Intigriti & Immunefi.
+> All-round bug bounty skill for Claude Code — parallelized agents for smart contract audits (EVM, Move, Solana, TRON), web/API security, local tooling orchestration, and submission-ready reports for HackerOne, Bugcrowd, Intigriti & Immunefi.
 
 ---
 
 ## What It Does
 
-BountyForge spins up **8 specialized security agents in parallel**, each attacking a different surface of your target. Findings are deduplicated, gate-evaluated, CVSS-scored, and formatted into a submission-ready report — in minutes.
+Bounty Forge spins up **8 specialized security agents in parallel**, each attacking a different surface of your target. Findings are deduplicated, gate-evaluated, CVSS-scored, and formatted into a submission-ready report — in minutes.
 
 | Agent | Covers |
 |---|---|
-| Web / API | Auth bypass, IDOR, XSS, SSRF, SQLi, GraphQL, CORS |
+| Web / API | Auth bypass, IDOR, XSS, SSRF, SQLi, CSV injection, open redirect, path traversal, parameter pollution, GraphQL, CORS |
 | Smart Contract | EVM, Move/Aptos, Solana, TRON — structural & chain-specific bugs |
 | Access Control | Role bypass, init hijack, confused deputy, proxy admin |
 | Business Logic | State machine abuse, workflow skip, limit bypass, payment logic |
@@ -19,7 +20,13 @@ BountyForge spins up **8 specialized security agents in parallel**, each attacki
 | Economic Security | Flash loans, oracle manipulation, inflation attacks, DeFi tokenomics |
 | Recon | Subdomain takeover, secret leaks, cloud misconfig, chain explorer recon |
 
-**Supported chains:** Ethereum / EVM · Aptos / Move · Solana / Anchor · TRON
+**Supported targets:** web/API, smart contracts, infrastructure, supply chain, internal tooling, binary analysis
+
+**Local tooling:** When Claude Code execution is enabled, BountyForge can orchestrate local CLI tools like `nmap`, `ffuf`, `amass`, `sqlmap`, `gobuster`, `curl`, `httpx`, `wfuzz`, `zap`, `burpsuite`, and other installed scanners/fuzzers.
+
+**Payload coverage:** Designed to explore unlimited payload variants for SQL injection, CSV injection, open redirect, XSS, SSRF, command injection, template injection, path traversal, deserialization, prototype pollution, auth bypass, business logic abuse, IDOR, CSRF, response splitting, and more.
+
+**Reference setup files:** `references/setup.md` and `references/local-tooling.md` contain the actual Deepseek CLI, local tooling, and vulnerability environment instructions the skill uses.
 
 **Report formats:** HackerOne · Bugcrowd · Intigriti · Immunefi · Generic
 
@@ -43,7 +50,92 @@ Start a fresh Claude Code session — skills load at startup.
 
 ---
 
+## Enabling Claude Code Execution (local execution)
+
+To allow BountyForge to run local tools and subagents, enable Claude Code (local execution) in your Claude environment and grant the skill permission to execute shell commands.
+
+macOS / Linux (Claude Code client):
+
+1. Start Claude Code with code-execution enabled (follow your Claude Code client docs).
+2. Ensure the shell that launches Claude Code has the tools you want on `PATH` (e.g., `nmap`, `ffuf`, `sqlmap`).
+3. If using project-specific env vars, source your project file before starting Claude Code:
+
+```bash
+source .env            # or project.env
+claude start           # or the command your Claude Code client uses
+```
+
+Windows (Claude.app / PowerShell):
+
+1. Open PowerShell as the user that runs Claude.
+2. Set any project env vars or tokens (example shown in `references/setup.md`).
+3. Launch Claude with code execution enabled from the same session so it inherits the environment.
+
+Notes:
+- If you are using the web/app variant, go to **Settings → Capabilities** and toggle **Code execution** on. Some deployments require you to enable a "subagent" or "local tooling" checkbox; consult your Claude distribution docs.
+- Always start Claude from the shell that has your project environment loaded so `deepseek export`, `nmap`, and other tools are available to the skill.
+- For privacy and safety, grant execution permission only for trusted skills and projects.
+
+
+## Deepseek Pro Setup (Claude CLI)
+
+BountyForge includes `references/setup.md` so the skill can use the same Deepseek CLI environment and local tooling configuration during audit runs.
+
+### Mac / Linux
+
+In your project shell or project file, export:
+
+```bash
+export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+export ANTHROPIC_MODEL=deepseek-v4-pro
+export ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro
+export ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash
+export CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash
+export CLAUDE_CODE_EFFORT_LEVEL=max
+export ANTHROPIC_AUTH_TOKEN="your-deepseek-pro-token"
+```
+
+Then bind the current repo:
+
+```bash
+deepseek export --project . --key "$ANTHROPIC_AUTH_TOKEN" --mode pro
+```
+
+Start Claude CLI from the same shell so the environment variables are active.
+
+### Windows (PowerShell)
+
+Use these variables in the current session:
+
+```powershell
+$env:ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"
+$env:ANTHROPIC_MODEL = "deepseek-v4-pro"
+$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "deepseek-v4-pro"
+$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "deepseek-v4-pro"
+$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "deepseek-v4-flash"
+$env:CLAUDE_CODE_SUBAGENT_MODEL = "deepseek-v4-flash"
+$env:CLAUDE_CODE_EFFORT_LEVEL = "max"
+$env:ANTHROPIC_AUTH_TOKEN = "your-deepseek-pro-token"
+
+deepseek export --project . --key $env:ANTHROPIC_AUTH_TOKEN --mode pro
+```
+
+For persistence, add the same variables to your PowerShell profile.
+
+> Note: this setup is intended for temporary use inside a project or shell session so the Deepseek CLI export command can be applied without modifying the core skill files.
+
+---
+
 ## Usage
+
+### How to use Bounty Forge
+
+1. **Choose a precise scope.** For bug bounty work, point the skill at the exact contract file, API endpoint list, or web target you are testing.
+2. **Enable code execution.** When Claude Code can run locally, Bounty Forge can orchestrate local tools like `nmap`, `ffuf`, `amass`, `sqlmap`, `gobuster`, `curl`, `httpx`, and `zap`.
+3. **Run an audit command.** Use the examples below and include `--file-output` or `--cvss` when you want a formatted deliverable.
+4. **Review findings.** The skill will classify and gate each finding, but always validate exploitability before submitting.
+5. **Generate a report.** Use the built-in report mode to turn confirmed findings into platform-ready output.
 
 ### Audit a contract or repo
 
@@ -53,6 +145,7 @@ audit contracts/
 ```
 run bountyforge on src/usdc.move --platform immunefi --cvss --file-output
 ```
+>/bountyforge <targetfile>
 ```
 check this contract for vulns --platform h1 --cvss
 ```
@@ -60,7 +153,7 @@ check this contract for vulns --platform h1 --cvss
 ### Web / API target
 
 ```
-bountyforge on https://api.target.com
+/bountyforge on https://api.target.com
 ```
 ```
 find vulns in this API — [paste endpoints / Swagger / JS bundle]
@@ -150,6 +243,8 @@ bountyforge/
     ├── judging.md                    # 4-gate evaluation rules
     ├── report-formatting.md          # Platform report templates
     ├── cvss-guide.md                 # CVSS 3.1 scoring guide
+    ├── setup.md                      # Deepseek CLI environment guidance
+    ├── local-tooling.md              # Local tooling and vuln coverage reference
     ├── attack-vectors/
     │   ├── web-api-vectors.md
     │   ├── smart-contract-vectors.md

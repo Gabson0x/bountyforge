@@ -17,10 +17,14 @@ Quick reference for all major web and API attack classes.
 
 ## Injection
 - SQLi: error-based, time-based, UNION, blind
+- CSV injection: leading `=`, `+`, `-`, `@` in exported spreadsheet fields
 - SSTI: Jinja2, Twig, FreeMarker, Velocity
 - Command injection: `;`, `|`, `$()`
 - XXE: SYSTEM entity, OOB via external DTD
 - SSRF: cloud metadata, internal network, localhost
+- Path traversal: `../`, `....//`, upload/download file path abuse
+- Open redirect: unvalidated `next`, `return_url`, `redirect_uri` parameters
+- Parameter pollution: duplicate query/form params, array/scalar collisions, header/value mismatches
 
 ## Cross-Site
 - XSS: reflected, stored, DOM; SVG upload, Markdown renderer

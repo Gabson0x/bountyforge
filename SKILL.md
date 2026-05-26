@@ -1,5 +1,5 @@
 ---
-name: bug-bounty-hunter
+name: bountyforge
 description: All-round bug bounty skill covering smart contract audits (EVM/Solidity, Move/Aptos, Solana, TRON), web/API security, and professional report generation for HackerOne, Bugcrowd, Intigriti, and Immunefi. Trigger on "audit", "bug bounty", "check for vulns", "find bugs", "write report", "security review", "check this contract", "find issues", "CVSS", "HackerOne report", "bounty report", "triage findings". Always use this skill for any security research or audit task, even if the user just pastes code or a URL without explicit instructions.
 ---
 
@@ -11,18 +11,13 @@ You are the orchestrator of a parallelized, multi-target bug bounty audit and re
 
 Before doing anything, print this exactly:
 ```
- ______   _______           _       _________          _______  _______  _______  _______  _______ 
-(  ___ \ (  ___  )|\     /|( (    /|\__   __/|\     /|(  ____ \(  ___  )(  ____ )(  ____ \(  ____ \
-| (   ) )| (   ) || )   ( ||  \  ( |   ) (   ( \   / )| (    \/| (   ) || (    )|| (    \/| (    \/
-| (__/ / | |   | || |   | ||   \ | |   | |    \ (_) / | (__    | |   | || (____)|| |      | (__    
-|  __ (  | |   | || |   | || (\ \) |   | |     \   /  |  __)   | |   | ||     __)| | ____ |  __)   
-| (  \ \ | |   | || |   | || | \   |   | |      ) (   | (      | |   | || (\ (   | | \_  )| (      
-| )___) )| (___) || (___) || )  \  |   | |      | |   | )      | (___) || ) \ \__| (___) || (____/\
-|/ \___/ (_______)(_______)|/    )_)   )_(      \_/   |/       (_______)|/   \__/(_______)(_______/
+ ____   ____   _   _ _   _ _   _  ______  _____  _____  _____ 
+|  _ \ / __ \ | \ | | | | | \ | |/ ____|/ ____|/ ____|/ ____|
+| |_) | |  | ||  \| | | | |  \| | |  __| (___ | |  __| (___  
+|  _ <| |  | || . ` | | | | . ` | | |_ |\___ \| | |_  \___ \ 
+| |_) | |_| | | | | (_| |  __/ |_| | | |  __/ | |  | |_| | |_) |  __/
+|____/ \____/ |_| \_|\___/|_| \_|\_____|_____/ \_____|_____/ 
 ```
- 
----
-
 ## Mode Selection
 
 Infer mode from user input. Multiple modes can be combined.
@@ -65,7 +60,7 @@ Print discovered file list and mode(s) selected.
 
 ### Turn 2 — Prepare
 
-In one message, make parallel reads: `{resolved_path}/report-formatting.md`, `{resolved_path}/judging.md`, `{resolved_path}/triage-filter.md`, and all applicable attack vector files.
+In one message, make parallel reads: `{resolved_path}/report-formatting.md`, `{resolved_path}/judging.md`, `{resolved_path}/setup.md`, `{resolved_path}/local-tooling.md`, `{resolved_path}/triage-filter.md`, and all applicable attack vector files.
 
 Then build all bundles in a single Bash `cat` command (no heredocs or shell variables):
 
@@ -75,14 +70,14 @@ Then build all bundles in a single Bash `cat` command (no heredocs or shell vari
 
 | Bundle | Appended files (relative to `{resolved_path}`) |
 |--------|------------------------------------------------|
-| `agent-1-bundle.md` | `triage-filter.md` + `attack-vectors/web-api-vectors.md` + `hacking-agents/web-api-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-2-bundle.md` | `triage-filter.md` + `attack-vectors/smart-contract-vectors.md` + `hacking-agents/smart-contract-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-3-bundle.md` | `triage-filter.md` + `hacking-agents/access-control-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-4-bundle.md` | `triage-filter.md` + `attack-vectors/business-logic-vectors.md` + `hacking-agents/business-logic-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-5-bundle.md` | `triage-filter.md` + `hacking-agents/crypto-math-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-6-bundle.md` | `triage-filter.md` + `hacking-agents/race-condition-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-7-bundle.md` | `triage-filter.md` + `hacking-agents/economic-security-agent.md` + `hacking-agents/shared-rules.md` |
-| `agent-8-bundle.md` | `triage-filter.md` + `hacking-agents/recon-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-1-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `attack-vectors/web-api-vectors.md` + `hacking-agents/web-api-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-2-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `attack-vectors/smart-contract-vectors.md` + `hacking-agents/smart-contract-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-3-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `hacking-agents/access-control-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-4-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `attack-vectors/business-logic-vectors.md` + `hacking-agents/business-logic-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-5-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `hacking-agents/crypto-math-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-6-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `hacking-agents/race-condition-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-7-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `hacking-agents/economic-security-agent.md` + `hacking-agents/shared-rules.md` |
+| `agent-8-bundle.md` | `triage-filter.md` + `setup.md` + `local-tooling.md` + `hacking-agents/recon-agent.md` + `hacking-agents/shared-rules.md` |
 
 Skip agent bundles whose domain doesn't apply to the selected mode(s).
 
@@ -174,15 +169,15 @@ Every report produced by BountyForge — regardless of platform — MUST follow 
 ---
 ## Proof of Concept (PoC)
 ### Step 1: <Short action label>
-<One sentence describing what this step demonstrates.>
+< sentence describing what this step demonstrates.>
 [Screenshot or code block]
 
 ### Step 2: <Short action label>
-<One sentence describing what this step demonstrates.>
+<sentence describing what this step demonstrates.>
 [Screenshot or code block]
 
 ### Step 3: <Short action label>
-<One sentence describing what this step demonstrates.>
+<sentence describing what this step demonstrates.>
 [Screenshot or code block]
 
 ---

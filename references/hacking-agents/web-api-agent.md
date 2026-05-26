@@ -34,8 +34,11 @@ Other agents cover smart contracts, math/crypto, and economics. You own the web 
 - CSRF: identify state-changing requests lacking anti-CSRF tokens or SameSite cookies. Test if token is checked server-side.
 - CORS: check `Access-Control-Allow-Origin` with arbitrary origins, including null. Check if credentials are allowed with wildcard.
 - Host header injection: send `Host: evil.com` and check if reflected in password reset links, redirects, or cache entries.
+- Open redirect: test `next`, `return_url`, `redirect_uri`, `url`, `continue` values and chained OAuth/SSO redirects.
+- CSV injection: inspect any spreadsheet export or import feature for fields beginning with `=`, `+`, `-`, `@`.
+- Parameter pollution: send duplicate query/form parameters and array/scalar variants to observe parsing/bypass differences.
 
-### 5. Business Logic
+## 5. Business Logic
 
 - Price manipulation: negative quantities, zero prices, coupon stacking, cart total manipulation.
 - Race conditions: concurrent requests to spend the same token/balance/coupon, two-thread checkout race.
@@ -62,6 +65,19 @@ Other agents cover smart contracts, math/crypto, and economics. You own the web 
 - Cache poisoning: inject `X-Forwarded-Host` or `X-Original-URL` to poison CDN cache with malicious content.
 - Subdomain takeover: check DNS CNAMEs pointing to unclaimed cloud assets (S3, GitHub Pages, Heroku, Azure).
 - WebSocket: test for missing auth on upgrade, message injection, cross-site WebSocket hijacking.
+
+## Local Tool Integration
+
+When local execution is available, use installed CLI tools to expand and verify findings.
+
+- `nmap` for network/service discovery
+- `ffuf` / `wfuzz` for endpoint and parameter fuzzing
+- `sqlmap` for SQL injection verification
+- `gobuster` / `amass` for host and subdomain enumeration
+- `curl` / `httpx` for request crafting and PoC reproduction
+- `zap` / `burpsuite` for automated scanning and proxy-assisted analysis
+
+Record which tool was used and include minimal evidence commands in the finding output.
 
 ## Output Fields
 
