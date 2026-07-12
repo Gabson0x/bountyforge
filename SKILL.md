@@ -412,6 +412,61 @@ HIGHEST PRIORITY (crown jewel x easiest entry):
 - [ ] Check WebSocket messages for client-supplied IDs
 - [ ] Test batch endpoints (can you request multiple IDs?)
 
+### Creating Test Accounts (Disposable Email & Phone)
+
+IDOR needs two accounts. Most programs require email verification; some require SMS. Don't use your real accounts — you need burner identities you fully control.
+
+**Disposable Email (for email verification):**
+| Service | Notes |
+|---------|-------|
+| [Guerrilla Mail](https://guerrillamail.com) | Inbox lasts 1 hour, custom addresses, API available |
+| [Mailinator](https://mailinator.com) | Public inboxes, no signup, any @mailinator.com address works |
+| [Temp-Mail](https://temp-mail.org) | Disposable inbox, mobile app available |
+| [10MinuteMail](https://10minutemail.com) | Self-destructs after 10 min, extendable |
+| [YOPmail](https://yopmail.com) | No registration, any @yopmail.com address, check any inbox |
+| [Emailnator](https://emailnator.com) | Gmail-style inbox, longer-lived |
+
+```bash
+# Guerrilla Mail API — get inbox and fetch emails programmatically
+curl -s "https://api.guerrillamail.com/ajax.php?f=get_email_address" | jq -r '.email_addr'
+# Check inbox
+curl -s "https://api.guerrillamail.com/ajax.php?f=check_email&seq=0" | jq '.list[] | "\(.mail_from): \(.mail_subject)"'
+```
+
+**Temporary Phone Numbers (for SMS verification):**
+| Service | Notes |
+|---------|-------|
+| [SMSPool](https://smspool.net) | Paid, reliable, API, 100+ countries |
+| [5SIM](https://5sim.net) | Paid, per-activation pricing, wide coverage |
+| [TextVerified](https://textverified.com) | US numbers, per-verification pricing |
+| [Quackr](https://quackr.io) | Free temporary numbers, limited availability |
+| [ReceiveSMS](https://receivesms.co) | Free, public numbers, low reliability |
+| [SMSTome](https://smstome.com) | Free, multiple countries, public inboxes |
+
+**Workflow:**
+```bash
+# 1. Create Account A with disposable email
+#    → Use Guerrilla Mail or Mailinator address
+#    → Complete email verification
+#    → If SMS required, use SMSPool or Quackr
+
+# 2. Create Account B same way (different disposable address)
+
+# 3. Login as A, populate account with data (orders, bookings, profile)
+
+# 4. Login as B, replay A's requests using B's session:
+curl -X GET "https://TARGET/api/v1/orders/ACCOUNT_A_ORDER_ID" \
+  -H "Authorization: Bearer ACCOUNT_B_TOKEN"
+
+# 5. If you can see A's data from B's session → IDOR confirmed
+```
+
+**Account creation tips:**
+- Use `+` aliases on Gmail if the target doesn't block them: `you+accountA@gmail.com`, `you+accountB@gmail.com` — both deliver to the same inbox but look like different emails to most services
+- Some programs detect disposable email domains — have a backup Gmail/Outlook ready
+- For programs requiring phone + email, SMSPool is most reliable for the phone half
+- Save all account credentials in your session notes — you'll need them when writing the PoC
+
 ## SSRF — Server-Side Request Forgery
 
 ### SSRF IP Bypass Table (11 Techniques)
