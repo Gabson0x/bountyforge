@@ -37,16 +37,23 @@ LOCAL_VERSION=$(cat VERSION 2>/dev/null || echo "0.0.0")
 REMOTE_VERSION=$(curl -sf "${UPSTREAM}/VERSION" 2>/dev/null || echo "$LOCAL_VERSION")
 
 if [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then
-  echo "⚠️  UPDATE AVAILABLE: v${LOCAL_VERSION} → v${REMOTE_VERSION}"
-  echo "   Run: git pull upstream main"
-  echo "   Then reload this skill."
-  echo ""
-  # Also check for new reference files
-  for f in references/supervisor.md references/knowledge.md references/*-vectors.md; do
-    if [ ! -f "$f" ]; then
-      echo "   📥 New file available: $f (run git pull to fetch)"
+  # Only warn if remote is actually newer (semver comparison)
+  if printf '%s\n%s\n' "$LOCAL_VERSION" "$REMOTE_VERSION" | sort -V -C 2>/dev/null; then
+    # LOCAL < REMOTE: upstream is newer
+    echo "⚠️  UPDATE AVAILABLE: v${LOCAL_VERSION} → v${REMOTE_VERSION}"
+    echo "   Run: git pull upstream main"
+    echo "   Then reload this skill."
+    echo ""
+    # Also check for new reference files (split to avoid zsh glob error)
+    for f in references/supervisor.md references/knowledge.md; do
+      if [ ! -f "$f" ]; then
+        echo "   📥 New file available: $f (run git pull to fetch)"
+      fi
+    done
+    if ! ls references/attack-vectors/*.md >/dev/null 2>&1; then
+      echo "   📥 Vector files not yet downloaded (run git pull to fetch)"
     fi
-  done
+  fi
 fi
 ```
 
@@ -233,6 +240,47 @@ In one message, spawn all applicable agents as parallel foreground Agent calls.
 ### Turn 4 — Deduplicate, Validate & Output
 
 Single-pass: deduplicate → gate-evaluate → report. Use supervisor.md triage rules.
+
+**After agents return findings, run the tool pipeline:**
+
+1. **Collect** all agent findings into a structured list
+2. **Run hunt.py** with `--active --json` to get structured findings with severity/class/chain_potential
+3. **Run KillChainBuilder** — feed findings into `build_all_chains()` to discover A→B→C chains
+4. **Run AdversaryEmulation** — classify each finding, compute MITRE/OWASP coverage, generate heatmap
+5. **Generate PoCs** via `exploit_gen` for confirmed, exploitable findings
+6. **Triage** each finding through the 7-Question Gate
+7. **Write reports** only for findings that pass the gate
+
+**Tool pipeline (single command sequence):**
+```bash
+# Collect findings from agents → structured JSON
+python3 tools/hunt.py --target T --active --json 2>/dev/null > state/sessions/T/findings_structured.json
+
+# Build chains
+python3 -c "
+import json
+from tools.kill_chain import KillChainBuilder
+f = json.load(open('state/sessions/T/findings_structured.json'))
+builder = KillChainBuilder('T')
+chains = builder.build_all_chains(f['findings'])
+# Chains with score > 0.6 are viable
+for c in chains:
+    if c.match_score >= 0.6:
+        print(f'{c.pattern.chain_id}: {c.pattern.name} ({c.combined_severity})')
+"
+
+# Coverage analysis
+python3 -c "
+import json
+from tools.adversary_emulation import AdversaryEmulation
+f = json.load(open('state/sessions/T/findings_structured.json'))
+emu = AdversaryEmulation('T')
+for finding in f['findings']:
+    emu.classify_finding(finding)
+cov = emu.compute_coverage(agents_deployed=['web-api-agent'], findings=f['findings'])
+print(f'Coverage gaps: {len(cov.gaps)}')
+"
+```
 
 ---
 
@@ -1749,3 +1797,118 @@ Patterns extracted from 100 highest-upvoted HackerOne reports. Use for target se
 - [Solodit](https://solodit.cyfrin.io) — 50K+ searchable audit findings (Web3)
 - [sisakulint](https://sisaku-security.github.io/lint/) — GitHub Actions SAST
 - [interactsh](https://app.interactsh.com) — OOB callback server
+
+---
+
+## PYTHON TOOLING
+
+All tools are in `tools/` relative to this SKILL.md. Use them directly — do not reimplement their logic.
+
+### Core Hunting Tools
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/hunt.py` | Session management, curl builder, auth-aware requests, active injection (SQLi/XSS/SSTI/RCE/path-traversal) | `python3 tools/hunt.py --target T --active --json` |
+| `tools/state.py` | Session state persistence (endpoints, findings) | Import and use `SessionState` class |
+| `tools/agent_bus.py` | Inter-agent signal passing | Import and use `AgentBus` class |
+
+### Exploit Generation
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/exploit_gen.py` | Generate PoC code (curl, Python, Burp, Metasploit) | `from exploit_gen import gen_curl, gen_python_poc` |
+| `tools/kill_chain.py` | A→B bug chain builder (23 H100-proven chains), auto-escalation | Import `KillChainBuilder` class |
+| `tools/adversary_emulation.py` | MITRE ATT&CK + OWASP coverage mapping, heatmap, gap analysis | Import `AdversaryEmulation` class |
+| `tools/formal_verify.py` | Certora specs, fuzz harnesses, API invariant tests | Import and use functions |
+
+### Recon & Intel
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/threat_intel.py` | HackerOne Hacktivity intelligence | `from threat_intel import fetch_hacktivity` |
+| `tools/patch_gap.py` | CVE/patch gap analysis, ExploitDB search | `from patch_gap import fetch_cves_by_technology` |
+| `tools/opsec.py` | UA rotation, Tor support, request obfuscation | Import `OpsecRotator` class |
+
+### Infrastructure & OPSEC
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/infra_deploy.py` | Callback server for OOB testing | `from infra_deploy import CallbackHandler` |
+| `tools/crypto_vault.py` | AES encryption for sensitive findings | `from crypto_vault import aes_encrypt, aes_decrypt` |
+| `tools/chain_of_custody.py` | Evidence chain of custody | Import `CustodyChain` class |
+
+### Fleet & Scheduling
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/fleet.py` | Multi-target fleet management | Import `FleetTarget`, `FleetSession` |
+| `tools/retest_scheduler.py` | Scope monitoring, retest scheduling | Import `RetestJob`, `WatchConfig` |
+
+### Web3-Specific
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/chainlink-oracle-vulns.py` | Chainlink oracle vulnerability patterns | Import and use |
+| `tools/glider-scan.py` | Glider protocol scanner | Import and use |
+
+### How to Use Tools
+
+**Full pipeline (single target):**
+```bash
+# Phase 1: Recon → seed live-hosts.txt and urls.txt
+# (run recon tools first: subfinder + httpx + katana)
+
+# Phase 2: Hunt with active injection + JSON output
+python3 tools/hunt.py --target TARGET --active --json 2>/dev/null | tee findings.json
+
+# Phase 3: Build kill chains from findings
+python3 -c "
+import json, sys
+from tools.kill_chain import KillChainBuilder
+findings = json.load(open('findings.json'))['findings']
+builder = KillChainBuilder('TARGET')
+chains = builder.build_all_chains(findings)
+for c in chains:
+    print(f'{c.pattern.chain_id}: {c.pattern.name} (score={c.match_score:.2f}, {c.combined_severity})')
+    for s in c.trigger_sequence: print(f'  {s}')
+"
+
+# Phase 4: Generate PoC for confirmed findings
+python3 -c "from tools.exploit_gen import gen_curl, gen_python_poc; print(gen_curl({'method':'POST','url':'https://target.com/api','headers':{},'body':'test'}))"
+
+# Phase 5: MITRE/OWASP coverage analysis
+python3 -c "
+import json
+from tools.adversary_emulation import AdversaryEmulation
+findings = json.load(open('findings.json'))['findings']
+emu = AdversaryEmulation('TARGET')
+for f in findings:
+    emu.classify_finding(f)  # Maps to MITRE ATT&CK + OWASP automatically
+cov = emu.compute_coverage(agents_deployed=['web-api-agent'], findings=findings)
+mitre_avg = sum(cov.mitre_coverage.values()) / max(len(cov.mitre_coverage), 1)
+print(f'MITRE avg: {mitre_avg:.0%}, OWASP gaps: {len(cov.gaps)}')
+"
+```
+
+**Individual tool usage:**
+```bash
+# Hunt with auth
+python3 tools/hunt.py --target TARGET --cookie 'session=abc123' --active --json
+
+# Hunt with two sessions for IDOR diffing
+python3 tools/hunt.py --target TARGET --auth-file-a .private/user-a.json --auth-file-b .private/user-b.json --json
+
+# Generate PoC
+python3 -c "from tools.exploit_gen import gen_curl; print(gen_curl({'method':'POST','url':'https://target.com/api','headers':{},'body':'test'}))"
+
+# Fetch Hacktivity intel
+python3 -c "from tools.threat_intel import fetch_hacktivity; print(fetch_hacktivity('target-program', limit=10))"
+
+# Check CVEs
+python3 -c "from tools.patch_gap import fetch_cves_by_technology; print(fetch_cves_by_technology(['nginx','apache'], days_back=30))"
+
+# Deploy OOB callback infrastructure
+python3 tools/infra_deploy.py --http-port 8080 --dns-port 5353
+```
+
+**Rule:** If a tool exists for a task, USE THE TOOL. Do not rewrite its logic. Agents should call `hunt.py --active --json` as their first action after recon — the structured JSON output feeds directly into kill_chain, exploit_gen, and adversary_emulation.

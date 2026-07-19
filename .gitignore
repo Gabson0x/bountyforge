@@ -1,0 +1,8 @@
+state/
+custody/
+.private/
+exploits/
+recon/
+*.tmp
+*.pyc
+__pycache__/
