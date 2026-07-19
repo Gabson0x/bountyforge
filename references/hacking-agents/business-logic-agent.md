@@ -51,6 +51,17 @@ Map every multi-step workflow (checkout, KYC, deposit-withdraw, bridge mint-burn
 - Account deletion + re-registration to reset abuse flags.
 - Pending action hijack: initiate an action as user A, then have user B complete it (e.g., password reset flow where token is not bound to requesting account).
 - Email case sensitivity: `User@example.com` vs `user@example.com` as distinct accounts.
+- Email confirmation bypass: change email to victim's → confirmation goes to your email → confirm → SSO takeover → set master password for all stores
+- OAuth linking: link attacker's OAuth provider to victim's account → access victim's data across services
+- Password reset without user interaction: direct API call sets new password
+
+### Payment & Financial Logic (H100 Proven)
+
+- In-flight payment data modification: intercept payment request to provider and alter amount/details
+- CD key / license key extraction: enumerate API to retrieve keys for any game/product
+- Double payout: exploit race condition or logic flaw to receive payment twice
+- Refund + retain resource: complete refund flow while keeping the purchased item
+- Price manipulation between order time and fulfillment
 
 ### Smart Contract Business Logic
 

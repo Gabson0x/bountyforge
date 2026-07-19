@@ -5,12 +5,15 @@
 - Replay completed transition
 - Reverse completed action to recover assets
 - Concurrent state transitions (two users advancing the same state)
+- Email confirmation bypass: change email → confirmation goes to old email → full account takeover
+- OAuth account linking abuse: link attacker's OAuth to victim's primary account
 
 ## Limits & Caps
 - Rate limit bypass (IP headers, parallel accounts)
 - Allowance decrement race (TOCTOU)
 - Max withdrawal split into sub-limit chunks
 - KYC/tier step skip via direct API call
+- GraphQL batching to bypass rate limits (1000 queries in one request)
 
 ## Payments & Deposits
 - Negative or zero amount accepted
@@ -18,6 +21,8 @@
 - Coupon stacking beyond intended limits
 - Refund + retain resource
 - Token type mismatch in deposit/withdrawal
+- In-flight payment data modification to payment provider
+- CD key / license key extraction via API enumeration
 
 ## Rewards & Incentives
 - Self-referral across accounts
@@ -30,6 +35,9 @@
 - Webhook triggers privileged action when crafted
 - Import/export bypasses create/update validation
 - Feature A state consumed by Feature B without validation
+- Project import: path traversal in file copy → arbitrary file read
+- Git repository import: malicious filename with git flags → file overwrite → RCE
+- Template rendering: SSTI via email templates, markdown renderers
 
 ## Identity & Account
 - Account merge to combine limits
@@ -37,3 +45,6 @@
 - Pending action hijack (token not bound to requesting account)
 - Email case sensitivity: two accounts for same address
 - Phone number recycling (carrier reassigns numbers)
+- Email confirmation bypass: system sends confirmation to current email instead of new email → SSO takeover
+- OAuth linking: link attacker's OAuth provider to victim's account → access victim's data
+- Password reset without user interaction: direct reset link generation

