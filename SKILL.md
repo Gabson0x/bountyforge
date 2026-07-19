@@ -1,6 +1,6 @@
 ---
 name: bountyforge
-description: All-round bug bounty skill covering smart contract audits (EVM/Solidity, Move/Aptos, Solana, TRON), web/API security, CI/CD pipeline attacks, LLM/AI security, and professional report generation for HackerOne, Bugcrowd, Intigriti, and Immunefi. Full pipeline — recon, pre-hunt learning from disclosed reports, vulnerability hunting (IDOR, SSRF, XSS, auth bypass, CSRF, race conditions, SQLi, XXE, SSTI, GraphQL, HTTP smuggling, cache poisoning, OAuth, subdomain takeover, cloud misconfig, ATO chains, agentic AI), A→B bug chaining (12 proven chains from H100), bypass tables, language-specific grep patterns, CI/CD (GitHub Actions expression injection, untrusted checkout, artifact/cache poisoning, self-hosted runner exploitation), supply chain attacks (npm/Gem/PyPI), infrastructure hunting (Jenkins, Grafana, K8s, Spring actuators), credential leak hunting, program-specific targeting profiles, and reporting (7-Question Gate, 4 validation gates, human-tone writing, CVSS 3.1, PoC generation). Includes supervisor triage system and disclosed-report knowledge base. Trigger on "audit", "bug bounty", "check for vulns", "find bugs", "write report", "security review", "check this contract", "find issues", "CVSS", "HackerOne report", "bounty report", "triage findings", "hunt". Always use this skill for any security research or audit task.
+description: All-round bug bounty skill covering smart contract audits (EVM/Solidity, Move/Aptos, Solana, TRON), web/API security, CI/CD pipeline attacks, LLM/AI security, and professional report generation for HackerOne, Bugcrowd, Intigriti, and Immunefi. Full pipeline — recon, pre-hunt learning from disclosed reports, vulnerability hunting (IDOR, SSRF, XSS, auth bypass, CSRF, race conditions, SQLi, XXE, SSTI, GraphQL, HTTP smuggling, cache poisoning, OAuth, subdomain takeover, cloud misconfig, ATO chains, agentic AI), A→B bug chaining (12 proven chains from H100), bypass tables, language-specific grep patterns, CI/CD (GitHub Actions expression injection, untrusted checkout, artifact/cache poisoning, self-hosted runner exploitation), supply chain attacks (npm/Gem/PyPI), infrastructure hunting (Jenkins, Grafana, K8s, Spring actuators), credential leak hunting, WAF bypass (15 techniques), flexible PoC execution (probe all interesting paths immediately), program-specific targeting profiles, and reporting (7-Question Gate, 4 validation gates, human-tone writing, CVSS 3.1, PoC generation). Includes supervisor triage system and disclosed-report knowledge base. Trigger on "audit", "bug bounty", "check for vulns", "find bugs", "write report", "security review", "check this contract", "find issues", "CVSS", "HackerOne report", "bounty report", "triage findings", "hunt", "waf bypass". Always use this skill for any security research or audit task.
 ---
 
 # BountyForge — Bug Bounty Hunter
@@ -95,6 +95,61 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 15. **ONE-HOUR RULE** — stuck on one target for an hour with no progress? SWITCH CONTEXT
 16. **TWO-EYE APPROACH** — combine systematic testing (checklist) with anomaly detection (watch for unexpected behavior)
 17. **T-SHAPED KNOWLEDGE** — go DEEP in one area and BROAD across everything else
+18. **NO RIGID CHECKLISTS** — if you see a potential exploitable path, probe it NOW. Don't save it for later or skip because it's "not in the checklist"
+19. **POC EVERYTHING** — when something looks interesting, run multiple PoC variations immediately. Confirm or deny, then move on
+20. **CHAIN FREELY** — if bug A has even a slight connection to bug B, try chaining them before reporting separately
+21. **WHEN IN DOUBT, PROBE** — uncertain if a path is exploitable? Run 3 quick PoCs. If none work, move on. If one works, go deep
+22. **DON'T ASK, SHOW** — don't ask if you should test something. Just test it. Show the result
+
+---
+
+## Flexible PoC Execution (Rigid = Slow, Flexible = Fast)
+
+**The skill does NOT restrict you to specific attack paths.** If you see something that looks even slightly exploitable — test it. Right now.
+
+### The Rule
+When you identify ANY of the following, immediately run PoCs to confirm or deny:
+- An endpoint that behaves differently than expected
+- A parameter that isn't properly sanitized
+- A WAF rule that seems incomplete
+- A filter that can be bypassed with encoding
+- A hidden endpoint or debug flag
+- A credential or token in source code
+- An error message that reveals internals
+- A timing difference that suggests a conditional check
+- A response that varies based on input
+
+### Probing Protocol
+
+```
+1. SEE something interesting (anomaly, different behavior, potential path)
+2. RUN 2-3 quick PoCs to test (different techniques, different payloads)
+3. CONFIRM if it works → escalate to deeper testing
+4. DENY if all fail → log and move on
+5. NEVER speculate — always show evidence
+```
+
+### PoC Variation Strategy
+
+For any interesting path, try at least these variations before giving up:
+
+| Path Type | PoC Variations |
+|-----------|---------------|
+| SQLi | Error-based, time-based, UNION, boolean, stacked queries |
+| XSS | Script tag, event handlers, SVG, JS context, encoding |
+| SSRF | Direct, DNS rebinding, protocol smuggling, IP obfuscation |
+| Auth bypass | Case variation, null bytes, type juggling, encoding |
+| File upload | Double extension, MIME bypass, archive traversal |
+| Race condition | Parallel requests, turbo intruder, single-packet |
+| WAF block | Case, comments, encoding, chunking, protocol downgrade |
+
+### What NOT to Do
+
+- **Don't ask permission to probe** — just do it
+- **Don't save interesting paths for later** — test now or it's forgotten
+- **Don't skip a path because it's "not in the checklist"** — the checklist is a guide, not a wall
+- **Don't assume the WAF blocks everything** — always try bypass techniques
+- **Don't report without PoC** — if you can't prove it, it's not a bug
 
 ---
 
@@ -151,6 +206,29 @@ Then build all bundles in a single Bash `cat` command:
 ### Turn 3 — Spawn Agents
 
 In one message, spawn all applicable agents as parallel foreground Agent calls.
+
+**Agent Selection:**
+
+| Agent | Domain | When to Use |
+|-------|--------|-------------|
+| `recon-agent` | Infrastructure, subdomains, exposed services | Start of any external target |
+| `web-api-agent` | Injection, auth, XSS, SSRF, smuggling | Any web/API target |
+| `access-control-agent` | IDOR, privilege escalation, SSO bypass | Auth/authz testing |
+| `business-logic-agent` | State machine, payments, account abuse | Workflow testing |
+| `race-condition-agent` | TOCTOU, front-running, concurrency | Financial/time-sensitive ops |
+| `waf-bypass-agent` | WAF detection + bypass techniques | When payloads are blocked by WAF/CDN |
+| `temp-email-agent` | Disposable email, verification bypass | Multi-account testing, ATO chains |
+| `browser-automation-agent` | Playwright, OAuth flows, session extraction | Auth flow automation |
+| `graphql-agent` | Introspection, batching, missing auth | GraphQL APIs |
+| `credential-leak-agent` | GitHub tokens, .env, build log secrets | Secret hunting |
+| `supply-chain-agent` | npm/Gem/PyPI squatting, CI/CD poisoning | Dependency analysis |
+| `http-smuggling-agent` | CL.TE/TE.CL desync, session hijack | Proxy/CDN targets |
+| `cache-poisoning-agent` | Unkeyed headers, CSP bypass, cache deception | CDN-backed targets |
+| `mobile-client-agent` | APK/IPA, Electron, game clients, deep links | Client-side apps |
+| `crypto-math-agent` | Overflow, precision, signatures | Smart contract math |
+| `economic-security-agent` | Flash loans, oracle manipulation | DeFi/protocol economics |
+
+**Flexibility Rule:** If an agent encounters something interesting outside its domain, it should probe it immediately rather than ignore it. WAF bypass agent finds SQLi? Test it. Recon agent finds leaked creds? Validate them. Don't defer — confirm now.
 
 ### Turn 4 — Deduplicate, Validate & Output
 
