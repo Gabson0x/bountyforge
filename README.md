@@ -3,6 +3,8 @@
 
 > All-round bug bounty skill for Claude Code — parallelized agents for smart contract audits (EVM, Move, Solana, TRON), web/API security, local tooling orchestration, and submission-ready reports for HackerOne, Bugcrowd, Intigriti & Immunefi.
 
+> **AI Pentesting Tool:** Run isolated, cloud-hosted pentesting sandboxes at **[bountyforge.xyz](https://bountyforge.xyz)** — your AI key, your Firecracker microVM, your report. Pipeline: recon → hunt → triage → H1-ready report. AI slop gets you rate-limited; BountyForge gets you paid.
+
 ---
 
 ## What It Does
@@ -29,6 +31,19 @@ Bounty Forge spins up **8 specialized security agents in parallel**, each attack
 **Reference setup files:** `references/setup.md` and `references/local-tooling.md` contain the actual Deepseek CLI, local tooling, and vulnerability environment instructions the skill uses.
 
 **Report formats:** HackerOne · Bugcrowd · Intigriti · Immunefi · Generic
+
+---
+
+## AI Pentesting Tool — bountyforge.xyz
+
+Take BountyForge hunting without spinning up your own environment. **[bountyforge.xyz](https://bountyforge.xyz)** hosts the same engine in isolated pentesting sandboxes:
+
+- Firecracker microVM per session — your AI key, your box, your report
+- Full `recon → hunt → triage → H1-ready report` pipeline in the browser
+- No rate limits, no AI slop — clean, isolated execution
+- Hosted skill releases managed from this repo
+
+> **Choose your platform:** install the open-source skill here, or hunt in the cloud at [bountyforge.xyz](https://bountyforge.xyz).
 
 ---
 
