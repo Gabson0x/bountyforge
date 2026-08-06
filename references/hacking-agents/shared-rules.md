@@ -208,6 +208,10 @@ BROADCAST promotion
 | Subdomain takeover → auth bypass | recon-agent | access-control-agent | High | Multiple |
 | CI/CD exposure → supply chain | recon-agent | web-api-agent | Critical | PayPal $30K |
 | Business logic → privilege escalation | business-logic-agent | access-control-agent | High | Shopify |
+| Supply chain → RCE in pipeline | rogue-agent | recon-agent | Critical | Codecov $10K |
+| Protocol confusion → auth bypass | rogue-agent | access-control-agent | Critical | Multiple |
+| Timing side-channel → credential leak | rogue-agent | web-api-agent | High | HackerOne |
+| Logic bomb → mass assignment | rogue-agent | business-logic-agent | High | Shopify |
 
 ### Agent Directory
 
@@ -225,6 +229,7 @@ Each agent registers its domain boundaries:
 | recon-agent | Subdomains, cloud assets, secrets, fingerprinting | All agents (provides surface map) | Code-level vulns |
 | counter-intelligence-agent | Honeypots, WAF, canaries, active defense | All agents (provides threat intel) | Finding bugs |
 | regression-agent | Fix verification, bypass discovery, patch gaps | All agents (re-tests findings) | Initial discovery |
+| rogue-agent | Unconventional vectors: supply chain, protocol confusion, timing side-channels, developer workflow, logic bombs, env recon | All agents (chain builder) | Staying within conventional bounds |
 
 ### Cross-Agent Workflow Example
 

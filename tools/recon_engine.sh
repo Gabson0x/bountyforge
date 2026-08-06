@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# BountyForge Recon Engine v2.1.0
+# BountyForge Recon Engine v3.0.0
 # Full pipeline: subdomains → resolve → live hosts → URLs → JS → secrets
 #
 # Usage:

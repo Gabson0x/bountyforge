@@ -22,6 +22,7 @@ Quick reference for all major web and API attack classes.
 - SQLi: error-based, time-based, UNION, blind
 - CSV injection: leading `=`, `+`, `-`, `@` in exported spreadsheet fields
 - SSTI: Jinja2, Twig, FreeMarker, Velocity
+- SpEL Injection: Spring Expression Language — `${7*7}` in error pages, `${T(java.lang.Runtime)}` for RCE, Akamai WAF bypass via character-by-character ASCII construction without quotes
 - Command injection: `;`, `|`, `$()`
 - XXE: SYSTEM entity, OOB via external DTD
 - SSRF: cloud metadata, internal network, localhost
@@ -32,6 +33,8 @@ Quick reference for all major web and API attack classes.
 
 ## Cross-Site
 - XSS: reflected, stored, DOM; SVG upload, Markdown renderer
+- XSS WAF Bypass: Unicode escapes (\u0061), HTML entities (&#106), optional chaining (?.), comment splitting (/**/), string concatenation ('ale'+'rt'), AutoFocus+OnFocus chaining, regex source (/al/.source+/ert/.source), dynamic import() exfil, form feed (%0C) + tab (%09) whitespace, multi-element assembly via location=, contenteditable+onbeforeinput, array indexing chars, double URL encoding (%252F)
+- Blind XSS: fetch('/admin') → btoa() → new Image().src exfiltration chain for admin page content theft
 - CSRF: missing token, SameSite not set
 - CORS: wildcard with credentials, null origin accepted
 - Host header injection: reset link, cache poisoning
