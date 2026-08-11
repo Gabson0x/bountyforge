@@ -223,13 +223,13 @@ The skill + references total ~8,400 lines. Loading everything into every agent k
 
 **Only run when `--web`, `--cicd`, `--full`, or URL target is detected.** Skip entirely for `--solidity`, `--move`, `--solana` (no web attack surface to fingerprint).
 
-When active, run these three checks inline (do NOT load the full `references/sis-intelligence.md` file — use this summary):
+When active, run these checks inline (do NOT load the full `references/sis-intelligence.md` file — use this summary):
 
-1. **Secrets scan** — grep code/configs/JS for `AKIA`, `ghp_`, `sk_live_`, `-----BEGIN PRIVATE KEY-----`, `xoxb-`, `password=`, `api_key=`. Mask matches: show first 4 + last 4 chars only.
-2. **Tech fingerprint** — check response headers for `Server`, `X-Powered-By`, `cf-ray`, `x-amz-request-id`. Note versions without fabricating CVEs.
-3. **Metadata** — if user provided files, check for author names, internal paths (`/Users/`, `C:\`), GPS, revision history.
+1. **Secrets scan** — grep code/configs/JS for `AKIA`, `ghp_`, `sk_live_`, `-----BEGIN PRIVATE KEY-----`, `xoxb-`, `password=`, `api_key=`. **Masking rule (mandatory):** Never reprint a live-looking secret in full. Show first 4 + last 4 chars, mask middle with `*`. The report itself must not become a leak vector.
+2. **Tech fingerprint** — check response headers for `Server`, `X-Powered-By`, `cf-ray`, `x-amz-request-id`. Apply **confidence tiers:** High = explicit version string in generator tag or manifest; Medium = inferred from structural/path patterns; Low = weak circumstantial signal. Note outdated versions as "N major releases behind current" **without fabricating CVE IDs** — direct users to NVD or vendor advisories instead.
+3. **Metadata** — if user provided files, check for author names, internal paths (`/Users/`, `C:\`), GPS, revision history. If AI lacks raw EXIF tool access, **state the limitation explicitly** and suggest `exiftool` or `mat2` for metadata stripping.
 
-**Boundary:** Passive only. No active probes. No secret validation. Redact all live secrets in output.
+**Boundary (non-negotiable):** Passive only. No active probes. No secret validation. Redact all live secrets in output. No speculative CVEs. Severity is evidence-based.
 
 Full methodology available in `references/sis-intelligence.md` — load only when user asks for detailed passive analysis.
 
@@ -245,7 +245,8 @@ Full methodology available in `references/sis-intelligence.md` — load only whe
 |------|-----------------|
 | `--solidity` / `--move` / `--solana` | `references/attack-vectors/smart-contract-vectors.md`, `references/cvss-guide.md` |
 | `--solidity` + MCP available | Additionally call `list_vulnerability_patterns` for acceptance rates (free) |
-| `--web` / `--full` | `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/report-formatting.md` |
+| `--web` / `--full` | `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/attack-vectors/spel-injection-vectors.md`, `references/report-formatting.md` |
+| `--web` / `--full` + advanced | Additionally load `references/attack-vectors/zerodays.md` (unconventional attack patterns, protocol confusion, timing side-channels) |
 | `--cicd` | `references/attack-vectors/web-api-vectors.md` (CI/CD sections) |
 | `--report` | `references/report-formatting.md`, `references/cvss-guide.md` |
 | `--triage` | `references/supervisor.md` only |
@@ -323,6 +324,10 @@ In one message, spawn all applicable agents as parallel foreground Agent calls.
 | `mobile-client-agent` | APK/IPA, Electron, game clients, deep links | Client-side apps |
 | `crypto-math-agent` | Overflow, precision, signatures | Smart contract math |
 | `economic-security-agent` | Flash loans, oracle manipulation | DeFi/protocol economics |
+| `smart-contract-agent` | EVM, Move, Solana, TRON structural + chain-specific bugs | Any smart contract audit |
+| `counter-intelligence-agent` | Honeypot detection, WAF traps, active defenders | When probing triggers unexpected 200s or generic responses |
+| `regression-agent` | Fix verification, bypass discovery, patch gaps | After bug fixes are deployed, retesting |
+| `rogue-agent` | Supply chain, protocol confusion, timing side-channels, env recon | Unconventional/chained attacks |
 
 **Flexibility Rule:** If an agent encounters something interesting outside its domain, it should probe it immediately rather than ignore it. WAF bypass agent finds SQLi? Test it. Recon agent finds leaked creds? Validate them. Don't defer — confirm now.
 
@@ -333,12 +338,12 @@ Single-pass: deduplicate → gate-evaluate → report. Use supervisor.md triage 
 **After agents return findings, run the tool pipeline:**
 
 1. **Collect** all agent findings into a structured list
-2. **Run agent isolation check** — `python3 tools/agent_isolation.py state/sessions/T/findings_structured.json --target T` — **skip if < 3 agents spawned or < 10 total findings.** When skipped, agents self-certify via their output format.
+2. **Run agent isolation check** — **First, load `references/isolation.md` domain boundaries and violation table**. Then run `python3 tools/agent_isolation.py state/sessions/T/findings_structured.json --target T` — **skip if < 3 agents spawned or < 10 total findings.** When skipped, agents self-certify via their output format. If violations found, cross-reference against isolation.md violation→response table.
 3. **Run hunt.py** with `--active --json` to get structured findings with severity/class/chain_potential
 4. **Run KillChainBuilder** — feed findings into `build_all_chains()` to discover A→B→C chains
 5. **Run AdversaryEmulation** — classify each finding, compute MITRE/OWASP coverage, generate heatmap
 6. **Generate PoCs** via `exploit_gen` for confirmed, exploitable findings
-7. **Triage** each finding through the 7-Question Gate (and Al-Mizaan deep validation if borderline — load `references/al-mizaan-gates.md` ONLY for findings that pass 7QG but need deeper analysis)
+7. **Triage** each finding through the 7-Question Gate (and Al-Mizaan deep validation if borderline — load `references/al-mizaan-gates.md` ONLY for findings that pass 7QG but need deeper analysis). **Apply confidence calibration:** cross-reference each finding's bug class against the acceptance rates in `references/bug-bounty-intelligence-mcp.md` (or the embedded rates in `references/al-mizaan-gates.md`). Adjust confidence score: rate>60%→+10 confidence, rate<40%→-15 confidence, n<20→flag as "low sample size."
 8. **Write reports** only for findings that pass all gates and isolation checks
 
 **Tool pipeline (single command sequence):**
@@ -1951,7 +1956,7 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 | Tool | Purpose | Usage |
 |------|---------|-------|
 | `tools/threat_intel.py` | HackerOne Hacktivity intelligence | `from threat_intel import fetch_hacktivity` |
-| `tools/patch_gap.py` | CVE/patch gap analysis, ExploitDB search | `from patch_gap import fetch_cves_by_technology` |
+| `tools/patch_gap.py` | CVE/patch gap analysis, ExploitDB search | `from patch_gap import fetch_cves_by_tech` |
 | `tools/opsec.py` | UA rotation, Tor support, request obfuscation | Import `OpsecRotator` class |
 
 ### Trust & Verification (v3.0.0)
@@ -1979,13 +1984,6 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 |------|---------|-------|
 | `tools/fleet.py` | Multi-target fleet management | Import `FleetTarget`, `FleetSession` |
 | `tools/retest_scheduler.py` | Scope monitoring, retest scheduling | Import `RetestJob`, `WatchConfig` |
-
-### Web3-Specific
-
-| Tool | Purpose | Usage |
-|------|---------|-------|
-| `tools/chainlink-oracle-vulns.py` | Chainlink oracle vulnerability patterns | Import and use |
-| `tools/glider-scan.py` | Glider protocol scanner | Import and use |
 
 ### How to Use Tools
 
@@ -2041,10 +2039,10 @@ python3 -c "from tools.exploit_gen import gen_curl; print(gen_curl({'method':'PO
 python3 -c "from tools.threat_intel import fetch_hacktivity; print(fetch_hacktivity('target-program', limit=10))"
 
 # Check CVEs
-python3 -c "from tools.patch_gap import fetch_cves_by_technology; print(fetch_cves_by_technology(['nginx','apache'], days_back=30))"
+python3 -c "from tools.patch_gap import fetch_cves_by_tech; print(fetch_cves_by_tech(['nginx','apache'], days_back=30))"
 
 # Deploy OOB callback infrastructure
-python3 tools/infra_deploy.py --http-port 8080 --dns-port 5353
+python3 tools/infra_deploy.py --type http-callback --port 8080 --dns-port 5353
 ```
 
 **Rule:** If a tool exists for a task, USE THE TOOL. Do not rewrite its logic. Agents should call `hunt.py --active --json` as their first action after recon — the structured JSON output feeds directly into kill_chain, exploit_gen, and adversary_emulation.
