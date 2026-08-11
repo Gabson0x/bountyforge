@@ -7,11 +7,12 @@
 - **SIS-MD Passive Intelligence Integration** — Three passive analysis modules (Metadata Intelligence, Secret & Sensitive Data Detection, Technology Fingerprinting) integrated from [SIS-MD Security Intelligence SkillMD](https://github.com/prize22/SIS-MD-Security-Intelligence-SkillMD-) by prize22. Added as a pre-hunt "Turn 1.5" step in the orchestration pipeline. See `references/sis-intelligence.md`.
 - **Agent Isolation System** — New agent boundary enforcement with domain isolation (Owns/Queries/Never Touches), scope compliance, execution permission levels, data integrity, and context safety checks. See `references/isolation.md`.
 - **Agent Isolation Checker Tool** — `tools/agent_isolation.py` with `AgentIsolationChecker` class and CLI for verifying agent findings stay within defined boundaries. Integrated into the Turn 4 tool pipeline.
+- **Bug Bounty Intelligence MCP Integration** — Full MCP server setup guide, tool reference, and embedded CC0 vulnerability acceptance rates (12 patterns, 1,032 findings, 10 contests). See `references/bug-bounty-intelligence-mcp.md`.
 - **Collaboration credits** section in README.md acknowledging both integrated projects.
 
 ### Changed
 - **Enhanced 7-Question Gate** — Q1 now explicitly requires working test case (not just HTTP request), Q3 requires impact quantification. Added Al-Mizaan deep validation as a secondary layer for complex findings.
-- **Orchestration pipeline** — Turn 1.5 added for passive intelligence gathering (SIS-MD). Turn 4 pipeline now includes agent isolation check before chain building and triage.
+- **Orchestration pipeline** — Turn 1 now detects MCP availability for smart contract audits. Turn 1.5 added for passive intelligence gathering (SIS-MD). Turn 2 mode-gated loading. Turn 4 pipeline now includes agent isolation check before chain building and triage.
 - **README Structure section** updated with new reference files and tools.
 - **SKILL.md RESOURCES section** now includes integrated projects and collaboration references.
 

@@ -45,7 +45,7 @@ if [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then
     echo "   Then reload this skill."
     echo ""
     # Also check for new reference files (split to avoid zsh glob error)
-    for f in references/supervisor.md references/knowledge.md references/al-mizaan-gates.md references/sis-intelligence.md references/isolation.md; do
+    for f in references/supervisor.md references/knowledge.md references/al-mizaan-gates.md references/sis-intelligence.md references/isolation.md references/bug-bounty-intelligence-mcp.md; do
       if [ ! -f "$f" ]; then
         echo "   📥 New file available: $f (run git pull to fetch)"
       fi
@@ -202,8 +202,9 @@ c. **Read** `VERSION` and `references/supervisor.md` and `references/knowledge.m
 d. **Bash** auto-update check (see AUTO-UPDATE SYSTEM above)
 e. **Bash** `mktemp -d /tmp/bbh-XXXXXX` → store as `{bundle_dir}`
 f. **If `--learn` flag:** run knowledge.md pipeline — search HackerOne Hacktivity for target program's disclosed reports
+g. **If `--solidity` or `--full` mode:** check if `bug-bounty-intelligence` MCP is available by attempting `list_vulnerability_patterns`. If available, use it for pre-hunt pattern prioritization. See `references/bug-bounty-intelligence-mcp.md`.
 
-Print discovered file list and mode(s) selected. If knowledge.md found disclosed reports, print key patterns extracted.
+Print discovered file list and mode(s) selected. If MCP is available, print acceptance-rate summary for detected protocol type. If knowledge.md found disclosed reports, print key patterns extracted.
 
 ### ⚡ CONTEXT BUDGET — Read This First
 
@@ -243,6 +244,7 @@ Full methodology available in `references/sis-intelligence.md` — load only whe
 | Mode | Load These Files |
 |------|-----------------|
 | `--solidity` / `--move` / `--solana` | `references/attack-vectors/smart-contract-vectors.md`, `references/cvss-guide.md` |
+| `--solidity` + MCP available | Additionally call `list_vulnerability_patterns` for acceptance rates (free) |
 | `--web` / `--full` | `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/report-formatting.md` |
 | `--cicd` | `references/attack-vectors/web-api-vectors.md` (CI/CD sections) |
 | `--report` | `references/report-formatting.md`, `references/cvss-guide.md` |
@@ -253,6 +255,7 @@ Full methodology available in `references/sis-intelligence.md` — load only whe
 **Do NOT load these unless explicitly needed:**
 - `references/al-mizaan-gates.md` — only when a finding passes 7QG but needs deep validation
 - `references/sis-intelligence.md` — only when user asks for detailed passive analysis
+- `references/bug-bounty-intelligence-mcp.md` — only when MCP is configured and doing contract audits
 - `references/isolation.md` — only when isolation violations are detected
 
 Then build all bundles in a single Bash `cat` command:
@@ -1880,7 +1883,7 @@ Patterns extracted from 100 highest-upvoted HackerOne reports. Use for target se
 - [interactsh](https://app.interactsh.com) — OOB callback server
 
 ### Collaboration & Integrated Projects
-- [Bug Bounty Intelligence MCP](https://github.com/holistis/bug-bounty-intelligence-mcp) — Al-Mizaan v3 7-gate validation framework, trained on 27,681 Sherlock/Code4rena findings. Free vulnerability acceptance rates dataset (CC0). See `references/al-mizaan-gates.md`.
+- [Bug Bounty Intelligence MCP](https://github.com/holistis/bug-bounty-intelligence-mcp) — MCP server with 3 tools: `scan_contract` ($5 USDC on Base, Al-Mizaan v3 analysis), `get_scan_report` (free), `list_vulnerability_patterns` (free, CC0 acceptance rates). Setup: `npx -y bug-bounty-intelligence-mcp@latest`. See `references/bug-bounty-intelligence-mcp.md`.
 - [3ilm MCP](https://github.com/holistis/3ilm-mcp) — Free-only MCP server for vulnerability pattern lookup from the same dataset
 - [SIS-MD Security Intelligence SkillMD](https://github.com/prize22/SIS-MD-Security-Intelligence-SkillMD-) — Portable passive security intelligence (metadata, secrets, fingerprinting). See `references/sis-intelligence.md`.
 

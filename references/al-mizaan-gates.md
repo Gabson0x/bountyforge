@@ -102,9 +102,52 @@ The two frameworks are complementary:
 
 ---
 
+## Vulnerability Acceptance Rates (CC0 — Embedded)
+
+Data from 1,032 exactly-reconciled findings across 10 Sherlock contests. Use for pre-hunt prioritization and post-hunt confidence calibration.
+
+| Pattern | Rate | Accepted/Total | n | Use for Prioritization |
+|---------|------|---------------|-----|----------------------|
+| reentrancy | 78% | 40/51 | 51 | High priority — strong signal |
+| overflow | 58% | 26/45 | 45 | High priority — moderate signal |
+| trusted-actor | 51% | 159/311 | 311 | High priority — very strong sample |
+| fee-miscalculation | 50% | 55/109 | 109 | Medium priority |
+| staleness | 49% | 86/174 | 174 | Medium priority |
+| mev-slippage | 49% | 44/89 | 89 | Medium priority |
+| access-control | 47% | 35/74 | 74 | Medium priority |
+| flash-loan | 46% | 6/13 | 13 | Low confidence (small n) |
+| dos-griefing | 41% | 64/156 | 156 | Medium priority |
+| rounding | 40% | 25/63 | 63 | Medium priority |
+| oracle-manipulation | 36% | 47/131 | 131 | Medium priority — common, low hit rate |
+| liquidation | 29% | 4/14 | 14 | Low confidence (small n) |
+
+**How to use this data:**
+- **Rate > 60%** → well-established pattern, reports in this class have high acceptance. Prioritize hunting.
+- **Rate 40-60%** → moderate signal. Gate carefully — many submissions fail on impact or reachability.
+- **Rate < 40%** → low acceptance. These bug classes have high false-positive rates. Require stronger PoC.
+- **n < 20** → directional only. Not enough data for statistical confidence. Treat as rough signal.
+
+**Limitations:** 10 of 105 contests reconciled. Tagging at ~65% precision. Measures submission reliability, not exploit frequency. Does not cover silent misses.
+
+---
+
+## MCP Server Integration
+
+The full dataset and AI scanning are available as an MCP server. See `references/bug-bounty-intelligence-mcp.md` for setup and usage.
+
+**Quick setup:**
+```bash
+claude mcp add bug-bounty-intelligence -- npx -y bug-bounty-intelligence-mcp@latest
+```
+
+**Tools:** `scan_contract` ($5 USDC, automated Solidity audit), `get_scan_report` (free), `list_vulnerability_patterns` (free, the rates above).
+
+---
+
 ## Source & Credits
 
 - **Repository:** [holistis/bug-bounty-intelligence-mcp](https://github.com/holistis/bug-bounty-intelligence-mcp)
+- **MCP Server:** `npx -y bug-bounty-intelligence-mcp@latest` — npm package with 3 tools
 - **Methodology:** `METHODOLOGY.md` — acceptance-rate derivation from exactly-reconciled Sherlock contest data
 - **Benchmark:** `BENCHMARK.md` — 100% Slither false-positive rate on 3FLabs/grunt, demonstrating why scope-aware, context-aware analysis matters
 - **Free dataset:** `vulnerability-acceptance-rates.json` — CC0-licensed, 1,032 verified findings across 10 contests

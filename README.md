@@ -65,6 +65,35 @@ Start a fresh Claude Code session — skills load at startup.
 2. Make sure **Code execution** is enabled in **Settings → Capabilities**
 3. Upload the `.skill` file from [Releases](https://github.com/Gabson0x/bountyforge/releases)
 
+### Optional: Bug Bounty Intelligence MCP (smart contract scanning)
+
+For automated Solidity scanning with Al-Mizaan v3 7-gate analysis, add the companion MCP server:
+
+```bash
+claude mcp add bug-bounty-intelligence -- npx -y bug-bounty-intelligence-mcp@latest
+```
+
+Or in `~/.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "bug-bounty-intelligence": {
+      "command": "npx",
+      "args": ["-y", "bug-bounty-intelligence-mcp@latest"]
+    }
+  }
+}
+```
+
+**Tools available:**
+| Tool | Cost | Purpose |
+|------|------|---------|
+| `scan_contract` | $5 USDC on Base | Submit a public Solidity repo for AI security analysis |
+| `get_scan_report` | Free | Poll scan status and get report URL |
+| `list_vulnerability_patterns` | Free | Acceptance rates from 1,032 reconciled Sherlock findings |
+
+BountyForge auto-detects the MCP and uses `list_vulnerability_patterns` (free) for pre-hunt bug-class prioritization. See `references/bug-bounty-intelligence-mcp.md` for full integration guide.
+
 ---
 
 ## Enabling Claude Code Execution (local execution)
