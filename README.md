@@ -5,6 +5,8 @@
 
 > **AI Pentesting Tool:** Run isolated, cloud-hosted pentesting sandboxes at **[bountyforge.xyz](https://bountyforge.xyz)** — your AI key, your Firecracker microVM, your report. Pipeline: recon → hunt → triage → H1-ready report. AI slop gets you rate-limited; BountyForge gets you paid.
 
+> **New in v3.1.0:** Al-Mizaan v3 deep validation gates, SIS-MD passive intelligence integration, agent isolation checks. See [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 ## What It Does
@@ -254,16 +256,23 @@ BountyForge checks for updates automatically on each run and will warn you if a 
 bountyforge/
 ├── SKILL.md                          # Main orchestrator
 ├── VERSION                           # Current version
+├── CHANGELOG.md                      # Release notes
 └── references/
     ├── judging.md                    # 4-gate evaluation rules
+    ├── supervisor.md                 # Detailed triage supervisor system
+    ├── knowledge.md                  # Disclosed-report knowledge base
     ├── report-formatting.md          # Platform report templates
     ├── cvss-guide.md                 # CVSS 3.1 scoring guide
     ├── setup.md                      # Deepseek CLI environment guidance
     ├── local-tooling.md              # Local tooling and vuln coverage reference
+    ├── al-mizaan-gates.md            # Al-Mizaan v3 7-gate deep validation (from Bug Bounty Intelligence MCP)
+    ├── sis-intelligence.md           # SIS-MD passive security intelligence integration
+    ├── isolation.md                  # Agent isolation rules and boundary enforcement
     ├── attack-vectors/
     │   ├── web-api-vectors.md
     │   ├── smart-contract-vectors.md
-    │   └── business-logic-vectors.md
+    │   ├── business-logic-vectors.md
+    │   └── ...
     └── hacking-agents/
         ├── shared-rules.md
         ├── web-api-agent.md
@@ -275,6 +284,24 @@ bountyforge/
         ├── economic-security-agent.md
         └── recon-agent.md
 ```
+
+---
+
+---
+
+## Collaboration & Integrated Projects
+
+BountyForge v3.1.0 integrates methodologies from:
+
+| Project | What We Integrated | Reference |
+|---------|-------------------|-----------|
+| [Bug Bounty Intelligence MCP](https://github.com/holistis/bug-bounty-intelligence-mcp) | Al-Mizaan v3 7-gate deep validation framework, scope-aware filtering methodology, vulnerability acceptance rates from 27,681 Sherlock/Code4rena findings | `references/al-mizaan-gates.md` |
+| [3ilm MCP](https://github.com/holistis/3ilm-mcp) | Free vulnerability pattern lookup (sibling project) | Resources section |
+| [SIS-MD Security Intelligence SkillMD](https://github.com/prize22/SIS-MD-Security-Intelligence-SkillMD-) | Passive security intelligence modules (metadata, secrets, fingerprinting), boundary enforcement rules, structured report format | `references/sis-intelligence.md` |
+
+**Key lessons integrated:**
+- **From Bug Bounty Intelligence:** 100% of Slither's "High" findings on a mature protocol were false positives — 89% were out-of-scope `lib/` noise. Scope-aware, context-aware analysis eliminates this class of error entirely.
+- **From SIS-MD:** Passive analysis before active hunting catches metadata leaks, secret sprawl, and technology misconfigurations that active scanners miss. Masked reporting prevents the report itself from becoming a leak vector.
 
 ---
 

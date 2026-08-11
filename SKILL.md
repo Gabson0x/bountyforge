@@ -45,13 +45,16 @@ if [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then
     echo "   Then reload this skill."
     echo ""
     # Also check for new reference files (split to avoid zsh glob error)
-    for f in references/supervisor.md references/knowledge.md; do
+    for f in references/supervisor.md references/knowledge.md references/al-mizaan-gates.md references/sis-intelligence.md references/isolation.md; do
       if [ ! -f "$f" ]; then
         echo "   📥 New file available: $f (run git pull to fetch)"
       fi
     done
     if ! ls references/attack-vectors/*.md >/dev/null 2>&1; then
       echo "   📥 Vector files not yet downloaded (run git pull to fetch)"
+    fi
+    if [ ! -f "tools/agent_isolation.py" ]; then
+      echo "   📥 New tool available: tools/agent_isolation.py (run git pull to fetch)"
     fi
   fi
 fi
@@ -84,6 +87,8 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 ---
 
 ## CRITICAL RULES
+
+**0. CONTEXT BUDGET** — This skill + references = ~8,400 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 3 ref files per agent bundle. Max 8 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
 
 1. **READ FULL SCOPE FIRST** — verify every asset/domain is owned by the target org
 2. **NO THEORETICAL BUGS** — "Can an attacker steal funds, leak PII, takeover account, or execute code RIGHT NOW?" If no, STOP.
@@ -200,15 +205,61 @@ f. **If `--learn` flag:** run knowledge.md pipeline — search HackerOne Hacktiv
 
 Print discovered file list and mode(s) selected. If knowledge.md found disclosed reports, print key patterns extracted.
 
-### Turn 2 — Prepare
+### ⚡ CONTEXT BUDGET — Read This First
 
-In one message, make parallel reads: `{resolved_path}/report-formatting.md`, `{resolved_path}/judging.md`, `{resolved_path}/setup.md`, `{resolved_path}/local-tooling.md`, `{resolved_path}/supervisor.md`, `{resolved_path}/knowledge.md`, and all applicable attack vector files.
+The skill + references total ~8,400 lines. Loading everything into every agent kills signal. **Follow these rules or findings will be noise:**
+
+| Rule | Threshold |
+|------|-----------|
+| Max agents per turn | 8 (not 16 — pick the best for the mode) |
+| Max reference files in agent bundle | 3 (agent def + shared-rules + ONE attack-vector) |
+| Max source.md size | 3,000 lines (truncate with `### TRUNCATED` marker if bigger) |
+| Skip SIS-MD Turn 1.5 | If mode is `--solidity`, `--move`, `--solana` only (no web surface) |
+| Skip isolation check | If < 3 agents spawned or < 10 total findings |
+| Al-Mizaan deep validation | Only load `references/al-mizaan-gates.md` when a finding is borderline (passed 7QG but feels uncertain) |
+
+### Turn 1.5 — Passive Intelligence (SIS-MD) ⚡ SKIP for pure contract audits
+
+**Only run when `--web`, `--cicd`, `--full`, or URL target is detected.** Skip entirely for `--solidity`, `--move`, `--solana` (no web attack surface to fingerprint).
+
+When active, run these three checks inline (do NOT load the full `references/sis-intelligence.md` file — use this summary):
+
+1. **Secrets scan** — grep code/configs/JS for `AKIA`, `ghp_`, `sk_live_`, `-----BEGIN PRIVATE KEY-----`, `xoxb-`, `password=`, `api_key=`. Mask matches: show first 4 + last 4 chars only.
+2. **Tech fingerprint** — check response headers for `Server`, `X-Powered-By`, `cf-ray`, `x-amz-request-id`. Note versions without fabricating CVEs.
+3. **Metadata** — if user provided files, check for author names, internal paths (`/Users/`, `C:\`), GPS, revision history.
+
+**Boundary:** Passive only. No active probes. No secret validation. Redact all live secrets in output.
+
+Full methodology available in `references/sis-intelligence.md` — load only when user asks for detailed passive analysis.
+
+### Turn 2 — Prepare ⚡ Mode-Gated Loading
+
+**Only load files relevant to the detected mode.** Never load all references at once.
+
+**Always loaded (all modes):** `{resolved_path}/judging.md`, `{resolved_path}/supervisor.md`
+
+**Mode-gated (load only what matches):**
+
+| Mode | Load These Files |
+|------|-----------------|
+| `--solidity` / `--move` / `--solana` | `references/attack-vectors/smart-contract-vectors.md`, `references/cvss-guide.md` |
+| `--web` / `--full` | `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/report-formatting.md` |
+| `--cicd` | `references/attack-vectors/web-api-vectors.md` (CI/CD sections) |
+| `--report` | `references/report-formatting.md`, `references/cvss-guide.md` |
+| `--triage` | `references/supervisor.md` only |
+| `--learn` flag active | Additionally load `references/knowledge.md` |
+| Local execution enabled | Additionally load `references/setup.md`, `references/local-tooling.md` |
+
+**Do NOT load these unless explicitly needed:**
+- `references/al-mizaan-gates.md` — only when a finding passes 7QG but needs deep validation
+- `references/sis-intelligence.md` — only when user asks for detailed passive analysis
+- `references/isolation.md` — only when isolation violations are detected
 
 Then build all bundles in a single Bash `cat` command:
 
-1. **`{bundle_dir}/source.md`** — all in-scope source files, each with `### path` header and fenced code block.
+1. **`{bundle_dir}/source.md`** — all in-scope source files, each with `### path` header and fenced code block. **Cap at 3,000 lines.** If bigger, include first 1,000 + last 1,000 + 1,000 from middle, with `### TRUNCATED` markers.
 
-2. **Agent bundles** = `source.md` + agent-specific files. Skip agent bundles whose domain doesn't apply.
+2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file. **Max 3 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 8 agents spawned per turn.**
 
 ### Turn 3 — Spawn Agents
 
@@ -244,17 +295,21 @@ Single-pass: deduplicate → gate-evaluate → report. Use supervisor.md triage 
 **After agents return findings, run the tool pipeline:**
 
 1. **Collect** all agent findings into a structured list
-2. **Run hunt.py** with `--active --json` to get structured findings with severity/class/chain_potential
-3. **Run KillChainBuilder** — feed findings into `build_all_chains()` to discover A→B→C chains
-4. **Run AdversaryEmulation** — classify each finding, compute MITRE/OWASP coverage, generate heatmap
-5. **Generate PoCs** via `exploit_gen` for confirmed, exploitable findings
-6. **Triage** each finding through the 7-Question Gate
-7. **Write reports** only for findings that pass the gate
+2. **Run agent isolation check** — `python3 tools/agent_isolation.py state/sessions/T/findings_structured.json --target T` — **skip if < 3 agents spawned or < 10 total findings.** When skipped, agents self-certify via their output format.
+3. **Run hunt.py** with `--active --json` to get structured findings with severity/class/chain_potential
+4. **Run KillChainBuilder** — feed findings into `build_all_chains()` to discover A→B→C chains
+5. **Run AdversaryEmulation** — classify each finding, compute MITRE/OWASP coverage, generate heatmap
+6. **Generate PoCs** via `exploit_gen` for confirmed, exploitable findings
+7. **Triage** each finding through the 7-Question Gate (and Al-Mizaan deep validation if borderline — load `references/al-mizaan-gates.md` ONLY for findings that pass 7QG but need deeper analysis)
+8. **Write reports** only for findings that pass all gates and isolation checks
 
 **Tool pipeline (single command sequence):**
 ```bash
 # Collect findings from agents → structured JSON
 python3 tools/hunt.py --target T --active --json 2>/dev/null > state/sessions/T/findings_structured.json
+
+# Agent isolation check — verify every agent stayed in bounds
+python3 tools/agent_isolation.py state/sessions/T/findings_structured.json --target T
 
 # Build chains
 python3 -c "
@@ -1477,16 +1532,16 @@ npm publish  # with malicious postinstall script
 
 ## The 7-Question Gate (Run BEFORE Writing ANY Report)
 
-All 7 must be YES. Any NO → STOP. See also `references/supervisor.md` for detailed triage flow.
+All 7 must be YES. Any NO → STOP. See also `references/supervisor.md` for detailed triage flow and `references/al-mizaan-gates.md` for deep validation methodology.
 
 ### Q1: Can I exploit this RIGHT NOW with a real PoC?
-Write the exact HTTP request. If you cannot produce a working request → KILL IT.
+Write the exact HTTP request or test case. If you cannot produce a working trigger → KILL IT.
 
 ### Q2: Does it affect a REAL user who took NO unusual actions?
 No "the user would need to..." with 5 preconditions. Victim did nothing special.
 
 ### Q3: Is the impact concrete (money, PII, ATO, RCE)?
-"Technically possible" is not impact. "I read victim's SSN" is impact.
+"Technically possible" is not impact. "I read victim's SSN" is impact. Quantify the harm.
 
 ### Q4: Is this in scope per the program policy?
 Check the exact domain/endpoint against the program's scope page.
@@ -1499,6 +1554,31 @@ Check the list below. If it's there and you can't chain it → KILL IT.
 
 ### Q7: Would a triager reading this say "yes, that's a real bug"?
 Read your report as if you're a tired triager at 5pm on a Friday. Does it pass?
+
+### Deep Validation: Al-Mizaan v3 Gates (for borderline or complex findings) ⚡ On-Demand
+
+The 7 gates below are self-contained. **Do NOT load `references/al-mizaan-gates.md` unless you need the full methodology with web/API translations and Sherlock contest evidence.** Use this inline version for 95% of cases.
+
+When a finding passes the 7-Question Gate but feels borderline, involves complex protocol logic, multi-step attack chains, or smart contract context:
+
+1. **Code Reading** — Does the code actually execute the vulnerable path? (Not docs, not comments)
+2. **Reachability Chain** — Map the exact call path from external entry point to vulnerable operation
+3. **Threat Model** — Who can trigger it? Trusted actor only with no bypass? → ELIMINATE
+4. **Invariant Breach** — What protocol security property is violated?
+5. **Protocol Intent** — Would the designers call this a bug or a feature?
+6. **Impact** — Quantify concrete harm in native terms (exact amount, not "could be significant")
+7. **Formal Proof** — Working PoC that executes against a realistic environment
+
+**Quick kill rules (from Al-Mizaan + Slither benchmark lesson):**
+- Trusted-actor-only trigger with no governance bypass → ELIMINATE
+- Finding in `lib/`, `interfaces/`, `mocks/`, `test/` → ELIMINATE (89% of automated scanner "Highs" are out-of-scope dependency noise)
+- No working PoC against realistic environment → DEMOTE to LEAD
+- "Documentation says X but code does Y" → code is authoritative, report the code behavior
+
+**Load the full `references/al-mizaan-gates.md` only when:**
+- The finding involves complex DeFi protocol economics
+- You need the Sherlock contest acceptance-rate data to defend severity
+- A triager is pushing back and you need the formal methodology citation
 
 ## 4 Pre-Submission Gates (from supervisor.md)
 
@@ -1787,6 +1867,7 @@ Patterns extracted from 100 highest-upvoted HackerOne reports. Use for target se
 
 ## RESOURCES
 
+### External References
 - [HackerOne Hacktivity](https://hackerone.com/hacktivity) — Disclosed reports
 - [HackerOne Top 100 Upvoted](https://reddelexc.github.io/hackerone-reports/#tops_100/TOP100UPVOTED.md) — Highest upvoted reports by bug class and program
 - [HackerOne Top 100 Paid](https://reddelexc.github.io/hackerone-reports/#tops_100/TOP100PAID.md) — Highest paying reports
@@ -1797,6 +1878,11 @@ Patterns extracted from 100 highest-upvoted HackerOne reports. Use for target se
 - [Solodit](https://solodit.cyfrin.io) — 50K+ searchable audit findings (Web3)
 - [sisakulint](https://sisaku-security.github.io/lint/) — GitHub Actions SAST
 - [interactsh](https://app.interactsh.com) — OOB callback server
+
+### Collaboration & Integrated Projects
+- [Bug Bounty Intelligence MCP](https://github.com/holistis/bug-bounty-intelligence-mcp) — Al-Mizaan v3 7-gate validation framework, trained on 27,681 Sherlock/Code4rena findings. Free vulnerability acceptance rates dataset (CC0). See `references/al-mizaan-gates.md`.
+- [3ilm MCP](https://github.com/holistis/3ilm-mcp) — Free-only MCP server for vulnerability pattern lookup from the same dataset
+- [SIS-MD Security Intelligence SkillMD](https://github.com/prize22/SIS-MD-Security-Intelligence-SkillMD-) — Portable passive security intelligence (metadata, secrets, fingerprinting). See `references/sis-intelligence.md`.
 
 ---
 
@@ -1838,6 +1924,7 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 | `tools/capability_registry.py` | Structured catalog of every discovered primitive, chain compatibility matching, coverage analysis | Import `CapabilityRegistry` class |
 | `tools/program_fit.py` | Program scope/suitability gate — filters noise before report generation | Import `ProgramFitGate` class |
 | `tools/ledger.py` | Evidence consistency verifier — cross-references findings against journal, endpoints, custody | Import `LedgerVerifier` class |
+| `tools/agent_isolation.py` | Agent isolation checker — verifies each agent operates within defined boundaries, prevents cross-contamination | Import `AgentIsolationChecker` class |
 
 ### Infrastructure & OPSEC
 
