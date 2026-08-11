@@ -45,7 +45,7 @@ if [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then
     echo "   Then reload this skill."
     echo ""
     # Also check for new reference files (split to avoid zsh glob error)
-    for f in references/supervisor.md references/knowledge.md references/al-mizaan-gates.md references/sis-intelligence.md references/isolation.md references/bug-bounty-intelligence-mcp.md; do
+    for f in references/supervisor.md references/knowledge.md references/al-mizaan-gates.md references/sis-intelligence.md references/isolation.md references/bug-bounty-intelligence-mcp.md references/cwe-knowledge-base.md; do
       if [ ! -f "$f" ]; then
         echo "   📥 New file available: $f (run git pull to fetch)"
       fi
@@ -88,7 +88,7 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 
 ## CRITICAL RULES
 
-**0. CONTEXT BUDGET** — This skill + references = ~8,400 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 3 ref files per agent bundle. Max 8 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
+**0. CONTEXT BUDGET** — This skill + references = ~9,500 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 3 ref files per agent bundle. Max 8 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
 
 1. **READ FULL SCOPE FIRST** — verify every asset/domain is owned by the target org
 2. **NO THEORETICAL BUGS** — "Can an attacker steal funds, leak PII, takeover account, or execute code RIGHT NOW?" If no, STOP.
@@ -257,6 +257,7 @@ Full methodology available in `references/sis-intelligence.md` — load only whe
 - `references/sis-intelligence.md` — only when user asks for detailed passive analysis
 - `references/bug-bounty-intelligence-mcp.md` — only when MCP is configured and doing contract audits
 - `references/isolation.md` — only when isolation violations are detected
+- `references/cwe-knowledge-base.md` — only when an agent needs CWE detection patterns for a specific bug class (lazy-load by agent domain section, not the full file)
 
 Then build all bundles in a single Bash `cat` command:
 
@@ -1886,6 +1887,7 @@ Patterns extracted from 100 highest-upvoted HackerOne reports. Use for target se
 - [Bug Bounty Intelligence MCP](https://github.com/holistis/bug-bounty-intelligence-mcp) — MCP server with 3 tools: `scan_contract` ($5 USDC on Base, Al-Mizaan v3 analysis), `get_scan_report` (free), `list_vulnerability_patterns` (free, CC0 acceptance rates). Setup: `npx -y bug-bounty-intelligence-mcp@latest`. See `references/bug-bounty-intelligence-mcp.md`.
 - [3ilm MCP](https://github.com/holistis/3ilm-mcp) — Free-only MCP server for vulnerability pattern lookup from the same dataset
 - [SIS-MD Security Intelligence SkillMD](https://github.com/prize22/SIS-MD-Security-Intelligence-SkillMD-) — Portable passive security intelligence (metadata, secrets, fingerprinting). See `references/sis-intelligence.md`.
+- **CWE Knowledge Base** — 1,047 CWEs with detection patterns, severity levels, and real-world impacts organized across 16 agent-domain sections. See `references/cwe-knowledge-base.md`.
 
 ---
 

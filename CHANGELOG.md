@@ -8,6 +8,7 @@
 - **Agent Isolation System** — New agent boundary enforcement with domain isolation (Owns/Queries/Never Touches), scope compliance, execution permission levels, data integrity, and context safety checks. See `references/isolation.md`.
 - **Agent Isolation Checker Tool** — `tools/agent_isolation.py` with `AgentIsolationChecker` class and CLI for verifying agent findings stay within defined boundaries. Integrated into the Turn 4 tool pipeline.
 - **Bug Bounty Intelligence MCP Integration** — Full MCP server setup guide, tool reference, and embedded CC0 vulnerability acceptance rates (12 patterns, 1,032 findings, 10 contests). See `references/bug-bounty-intelligence-mcp.md`.
+- **CWE Knowledge Base** — 1,047 CWEs with detection patterns, severity levels, and real-world impacts organized across 16 BountyForge agent domains (Web/API Injection, XSS, SSRF, Auth/Session, Authorization, Crypto, Business Logic, Race Conditions, Information Leakage, Smart Contracts + SWC registry, Network/Infrastructure, CI/CD/Supply Chain, Mobile, Cloud/Container, GraphQL, HTTP Smuggling/Cache Poisoning). Includes agent-to-CWE quick index. See `references/cwe-knowledge-base.md`.
 - **Collaboration credits** section in README.md acknowledging both integrated projects.
 
 ### Changed

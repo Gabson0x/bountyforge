@@ -297,6 +297,7 @@ bountyforge/
     ├── al-mizaan-gates.md            # Al-Mizaan v3 7-gate deep validation (from Bug Bounty Intelligence MCP)
     ├── sis-intelligence.md           # SIS-MD passive security intelligence integration
     ├── isolation.md                  # Agent isolation rules and boundary enforcement
+    ├── cwe-knowledge-base.md          # 1,047 CWEs across 16 agent domains with detection patterns
     ├── attack-vectors/
     │   ├── web-api-vectors.md
     │   ├── smart-contract-vectors.md
