@@ -88,7 +88,7 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 
 ## CRITICAL RULES
 
-**0. CONTEXT BUDGET** — This skill + references = ~9,500 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 3 ref files per agent bundle. Max 8 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
+**0. CONTEXT BUDGET** — This skill + references = ~10,000 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 4 ref files per agent bundle (incl. CWE section). Max 8 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
 
 1. **READ FULL SCOPE FIRST** — verify every asset/domain is owned by the target org
 2. **NO THEORETICAL BUGS** — "Can an attacker steal funds, leak PII, takeover account, or execute code RIGHT NOW?" If no, STOP.
@@ -257,13 +257,47 @@ Full methodology available in `references/sis-intelligence.md` — load only whe
 - `references/sis-intelligence.md` — only when user asks for detailed passive analysis
 - `references/bug-bounty-intelligence-mcp.md` — only when MCP is configured and doing contract audits
 - `references/isolation.md` — only when isolation violations are detected
-- `references/cwe-knowledge-base.md` — only when an agent needs CWE detection patterns for a specific bug class (lazy-load by agent domain section, not the full file)
+- `references/cwe-knowledge-base.md` — loaded by domain section during Turn 2.5 per spawned agent; never load the full file at once (1,100+ lines)
 
 Then build all bundles in a single Bash `cat` command:
 
 1. **`{bundle_dir}/source.md`** — all in-scope source files, each with `### path` header and fenced code block. **Cap at 3,000 lines.** If bigger, include first 1,000 + last 1,000 + 1,000 from middle, with `### TRUNCATED` markers.
 
-2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file. **Max 3 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 8 agents spawned per turn.**
+2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file + CWE domain section (see Turn 2.5). **Max 4 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 8 agents spawned per turn.**
+
+### Turn 2.5 — Load CWE Detection Patterns 🔍
+
+**For every agent being spawned, load its relevant CWE domain section from `references/cwe-knowledge-base.md`.** This gives each agent concrete detection payloads, grep patterns, and fuzzing strategies for its bug class assignments.
+
+Load only the section matching the agent's domain — never the full file:
+
+| Agent | CWE Section to Load | Lines | Key Detection Content |
+|-------|-------------------|-------|----------------------|
+| `web-api-agent` | Sections 1-3 (Injection, XSS, SSRF) + 9 (Info Leakage) | ~200 | SQLi/XSS/SSRF/LFI payloads, error-based detection |
+| `access-control-agent` | Sections 4-5 (Auth, Authorization) | ~180 | JWT attacks, OAuth bypass, IDOR detection |
+| `smart-contract-agent` | Section 10 (Smart Contracts + SWC) | ~70 | Slither/Foundry commands, reentrancy/replay patterns |
+| `crypto-math-agent` | Section 6 (Cryptographic Weaknesses) | ~90 | TLS audit, weak PRNG, JWT/key checks |
+| `business-logic-agent` | Section 7 (Business Logic) | ~60 | Race condition poc, mass assignment, workflow skip |
+| `race-condition-agent` | Section 8 (Race Conditions) | ~50 | Turbo Intruder, last-byte sync, parallel req patterns |
+| `recon-agent` | Sections 9, 11, 14 (Info Leak, Infra, Cloud) | ~150 | .git/.env checks, exposed dashboards, S3 bucket tests |
+| `supply-chain-agent` | Section 12 (CI/CD & Supply Chain) | ~50 | GitHub Actions injection, unpinned deps, artifact poisoning |
+| `http-smuggling-agent` | Section 16 (HTTP Smuggling + Cache) | ~25 | CL.TE/TE.CL payloads |
+| `cache-poisoning-agent` | Section 16 (HTTP Smuggling + Cache) | ~25 | Unkeyed header injection, cache deception |
+| `graphql-agent` | Section 15 (GraphQL) | ~25 | Introspection, batching, depth attacks |
+| `mobile-client-agent` | Section 13 (Mobile) | ~50 | APK analysis, deep links, WebView, biometric bypass |
+| `credential-leak-agent` | Section 9 (Info Leakage) | ~60 | grep patterns for keys/secrets, .git exposure |
+| `waf-bypass-agent` | Sections 1-3 (Injection, XSS, SSRF) | ~60 | Encoding tricks, parser differentials |
+
+**How to load efficiently:**
+```bash
+# Extract only the relevant section for the agent (example: web-api-agent sections 1-3 + 9)
+sed -n '/^## CWE-1: Web\/API Injection/,/^## CWE-4: Authentication/p' references/cwe-knowledge-base.md
+sed -n '/^## CWE-2: Cross-Site Scripting/,/^## CWE-3: SSRF/p' references/cwe-knowledge-base.md
+sed -n '/^## CWE-3: SSRF/,/^## CWE-4: Authentication/p' references/cwe-knowledge-base.md
+sed -n '/^## CWE-9: Information Leakage/,/^## CWE-10: Smart Contracts/p' references/cwe-knowledge-base.md
+```
+
+**CWE-to-bug_class mapping:** Each agent's `shared-rules.md` now includes a complete CWE mapping table. Every FINDING must include a `cwe:` field with the primary CWE ID from that mapping. This ensures every finding is auto-tagged with the correct CWE without agents needing to memorize CWE IDs.
 
 ### Turn 3 — Spawn Agents
 

@@ -45,6 +45,97 @@ LEAD
 
 **Web/API:** idor, broken-auth, jwt-bypass, ssrf, sqli, csv-injection, xss-stored, xss-reflected, xss-dom, xxe, rce, path-traversal, open-redirect, csrf, graphql-introspection, business-logic, race-condition-web, mass-assignment, insecure-deserialization, info-disclosure, cors-misconfiguration, account-takeover, privilege-escalation-web, api-key-exposure, oauth-bypass, subdomain-takeover, cache-poisoning, request-smuggling, parameter-pollution, http-response-splitting, host-header-injection
 
+## CWE Mapping Table
+
+Every `bug_class` emitted by an agent maps to one or more CWE IDs. Agents should include the primary CWE in the `cwe` field of their FINDING output. For findings that span multiple CWE categories, list the primary first.
+
+### Smart Contract → CWE
+
+| bug_class | Primary CWE | Related CWEs | Notes |
+|-----------|-------------|-------------|-------|
+| reentrancy | CWE-841 | SWC-107 | State update after external call |
+| integer-overflow | CWE-190 | CWE-682, SWC-101 | Pre-0.8.x unchecked math |
+| integer-underflow | CWE-191 | CWE-682 | Wraparound below zero |
+| precision-loss | CWE-682 | CWE-193 | Rounding direction, division before multiplication |
+| access-control-bypass | CWE-284 | CWE-862, SWC-105 | Missing ownership check, unprotected selfdestruct |
+| unprotected-initializer | CWE-284 | CWE-841, SWC-106 | Missing initializer modifier |
+| storage-collision | CWE-841 | CWE-682 | Proxy-impl storage layout mismatch |
+| front-running | CWE-362 | CWE-841, SWC-114 | Transaction ordering dependence |
+| oracle-manipulation | CWE-841 | CWE-362 | TWAP/spot price oracle manipulation |
+| flash-loan-attack | CWE-841 | CWE-362 | Single-transaction price manipulation |
+| signature-replay | CWE-347 | CWE-294, SWC-121 | Missing nonce/chainId in signed message |
+| cross-chain-replay | CWE-841 | CWE-347 | Same signature valid on multiple chains |
+| missing-zero-address-check | CWE-682 | CWE-841 | Token sent to address(0) |
+| unchecked-return-value | CWE-252 | CWE-284, SWC-104 | `.call()` return value not checked |
+| denial-of-service | CWE-400 | CWE-841, SWC-113 | Block gas limit, revert, griefing |
+| griefing | CWE-841 | CWE-400 | Low-cost attack causing disproportionate harm |
+| upgrade-bypass | CWE-841 | CWE-284 | UUPS upgrade called by non-admin |
+| delegatecall-injection | CWE-829 | CWE-841, SWC-112 | User-controlled delegatecall target |
+| price-manipulation | CWE-841 | CWE-362 | Thin-orderbook AMM manipulation |
+| invariant-violation | CWE-841 | CWE-682 | Protocol invariant breach |
+| race-condition-sc | CWE-362 | CWE-841 | Reentrancy, cross-function race |
+| orphaned-role | CWE-284 | CWE-269 | Owner role with no transfer mechanism |
+| emergency-misuse | CWE-841 | CWE-284 | Unpaused-only, no multisig/timelock |
+
+### Web/API → CWE
+
+| bug_class | Primary CWE | Related CWEs | Notes |
+|-----------|-------------|-------------|-------|
+| idor | CWE-639 | CWE-862, CWE-284 | Direct object reference without ownership check |
+| broken-auth | CWE-287 | CWE-306, CWE-307 | Missing/weak authentication |
+| jwt-bypass | CWE-347 | CWE-287 | alg:none, algorithm confusion, kid injection |
+| ssrf | CWE-918 | CWE-441, CWE-610 | Server-side request to internal resources |
+| sqli | CWE-89 | CWE-943, CWE-564 | SQL/NoSQL/HQL injection |
+| csv-injection | CWE-1236 | CWE-94 | Formula injection in CSV export |
+| xss-stored | CWE-79 | — | Persistent XSS in stored content |
+| xss-reflected | CWE-79 | — | Reflected XSS in response |
+| xss-dom | CWE-79 | — | Client-side DOM-based XSS |
+| xxe | CWE-611 | CWE-827, CWE-776 | XML external entity injection |
+| rce | CWE-94 | CWE-78, CWE-502, CWE-95 | Code/command execution |
+| path-traversal | CWE-22 | CWE-23, CWE-36 | Directory traversal, path equiv |
+| open-redirect | CWE-601 | — | Unvalidated redirect |
+| csrf | CWE-352 | CWE-346 | Cross-site request forgery |
+| graphql-introspection | CWE-200 | CWE-862 | Schema exposure + missing field auth |
+| business-logic | CWE-840 | CWE-841, CWE-1284 | Workflow, validation, rate bypass |
+| race-condition-web | CWE-362 | CWE-367 | Parallel request race, TOCTOU |
+| mass-assignment | CWE-915 | CWE-472 | Auto-binding without whitelist |
+| insecure-deserialization | CWE-502 | CWE-915 | Untrusted deserialization |
+| info-disclosure | CWE-200 | CWE-532, CWE-538 | Verbose errors, exposed files |
+| cors-misconfiguration | CWE-942 | CWE-346 | ACAO: * with credentials |
+| account-takeover | CWE-287 | CWE-640, CWE-620 | ATO via reset/password change |
+| privilege-escalation-web | CWE-269 | CWE-863, CWE-862 | User → admin role bypass |
+| api-key-exposure | CWE-798 | CWE-312, CWE-522 | Hardcoded/leaked API keys |
+| oauth-bypass | CWE-601 | CWE-287, CWE-346 | redirect_uri validation, CSRF, scope upgrade |
+| subdomain-takeover | CWE-284 | CWE-200 | DNS dangling record to attacker |
+| cache-poisoning | CWE-444 | CWE-436 | Unkeyed headers → cache poisoning |
+| request-smuggling | CWE-444 | CWE-436 | CL.TE/TE.CL desync |
+| parameter-pollution | CWE-235 | CWE-88 | Duplicate params → logic bypass |
+| http-response-splitting | CWE-113 | CWE-79 | CRLF injection in headers |
+| host-header-injection | CWE-290 | CWE-441 | Host header → cache poison, password reset hijack |
+
+### Output Format Update
+
+Add a `cwe` field to every FINDING and LEAD output:
+
+```
+FINDING
+  id: <sequential number>
+  title: <≤10 words, impact-first>
+  target: <contract name / endpoint / file path>
+  location: <function name / line number / URL path>
+  bug_class: <canonical class — see list above>
+  cwe: <primary CWE ID from mapping table above>
+  group_key: <Target | location | bug_class>
+  severity: critical | high | medium | low | informational
+  ...
+```
+
+**When to include CWE tags:**
+- Every FINDING must include the primary CWE from the mapping table
+- For composite chains, include all CWEs: `cwe: [CWE-601, CWE-287]`
+- For audit/report mode, cross-reference against `references/cwe-knowledge-base.md` for full detection patterns
+- If a bug_class maps to multiple CWEs, pick the one that best matches the specific vulnerability variant
+
 ## Severity Calibration
 
 | Severity | Smart Contract | Web/API |

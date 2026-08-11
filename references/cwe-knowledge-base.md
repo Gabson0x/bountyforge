@@ -32,7 +32,7 @@ Load only the sections relevant to the active mode. Full file: load sections mat
 | CWE-94 | Code Injection | Critical | `eval()`, `Function()`, `require()` with user input | Full RCE |
 | CWE-95 | Eval Injection | Critical | Direct eval of user-supplied strings | RCE |
 | CWE-96 | Static Code Injection | Critical | User input written to interpreted files (PHP, Python, JS) | RCE on include/import |
-| CWE-1336 | Formula Injection (CSV Injection) | High | `=cmd|' /C calc'!A0`, `@SUM(1,2)` in CSV export | RCE when opened in Excel |
+| CWE-1236 | Formula Injection (CSV Injection) | High | `=cmd|' /C calc'!A0`, `@SUM(1,2)` in CSV export | RCE when opened in Excel |
 | CWE-98 | PHP Remote File Inclusion | Critical | `include($_GET['page'])` with remote URL | RCE |
 | CWE-473 | PHP External Variable Modification | High | Register globals, extract() on user input | Variable poisoning |
 | CWE-621 | Variable Extraction Error | Medium | extract() with EXTR_OVERWRITE | Variable manipulation |
@@ -41,8 +41,8 @@ Load only the sections relevant to the active mode. Full file: load sections mat
 ### Template Injection Family
 | CWE | Name | Severity | Detection Pattern | Impact |
 |-----|------|----------|-------------------|--------|
-| CWE-1336 | Server-Side Template Injection (SSTI) | Critical | `{{7*7}}`, `${7*7}`, `{{config}}` in templates | RCE, file read, SSRF |
-| CWE-94 | Client-Side Template Injection | High | `{{constructor.constructor('alert(1)')()}}` in AngularJS/Vue | XSS, client-side RCE |
+| CWE-94 | Server-Side Template Injection (SSTI) | Critical | `{{7*7}}`, `${7*7}`, `{{config}}` in templates | RCE, file read, SSRF |
+| CWE-94 | Client-Side Template Injection (CSTI) | High | `{{constructor.constructor('alert(1)')()}}` in AngularJS/Vue | XSS, client-side RCE |
 
 ### Path Traversal Family
 | CWE | Name | Severity | Detection Pattern | Impact |
@@ -140,6 +140,36 @@ Load only the sections relevant to the active mode. Full file: load sections mat
 | CWE-824 | Access of Uninitialized Pointer | High | Uninitialized pointer deref | Arbitrary R/W |
 | CWE-825 | Expired Pointer Dereference | High | Deref of freed/dangling pointer | Use-after-free |
 
+### Memory Corruption Detection Toolkit
+```bash
+# Fuzz harness (AFL++): instrument and fuzz any binary
+afl-clang-fast -fsanitize=address,undefined target.c -o target_fuzz
+afl-fuzz -i seeds/ -o out/ -- ./target_fuzz @@
+
+# AddressSanitizer: detect buffer overflow, use-after-free, double-free at runtime
+gcc -fsanitize=address -g target.c -o target_asan
+./target_asan < malicious_input
+
+# Valgrind: detect memory leaks and invalid accesses
+valgrind --leak-check=full --track-origins=yes ./target < input
+
+# Check binary hardening (NX, PIE, RELRO, stack canary)
+checksec --file=./target_binary
+readelf -l ./target | grep GNU_STACK    # Check NX bit
+readelf -d ./target | grep BIND_NOW     # Check Full RELRO
+
+# Pattern grep for dangerous C/C++ functions in source
+grep -rn 'strcpy\|strcat\|sprintf\|gets\|scanf\|memcpy\|memmove' --include='*.c' --include='*.cpp' .
+
+# Find format string bugs
+grep -rn 'printf.*%s.*user\|printf.*%d.*user\|syslog.*user' --include='*.c' .
+
+# GDB exploit development
+gdb -q ./target
+(gdb) pattern create 200         # Create cyclic pattern
+(gdb) pattern offset 0x41414141  # Find EIP offset
+```
+
 ---
 
 ## CWE-2: Cross-Site Scripting (agent: web-api-agent) — ~60 CWEs
@@ -147,16 +177,16 @@ Load only the sections relevant to the active mode. Full file: load sections mat
 | CWE | Name | Severity | Detection Pattern | Impact |
 |-----|------|----------|-------------------|--------|
 | CWE-79 | Cross-Site Scripting (XSS) | High | `<script>alert(1)</script>`, event handlers, javascript: URLs | Session hijack, phishing, keylogging |
-| CWE-80 | Basic XSS (no encoding) | High | Raw HTML injection without sanitization | Cookie theft |
-| CWE-81 | XSS via Error Message | Medium | Error pages reflecting user input as HTML | Phishing via error page |
-| CWE-82 | XSS via HTTP Header | Medium | User-controlled headers reflected without sanitization | Cookie theft |
-| CWE-83 | XSS via Script in Attributes | High | `onmouseover=`, `onerror=`, `onload=` in HTML attributes | Script exec |
-| CWE-84 | XSS via URI Scheme | Medium | `javascript:` URI in href/src attributes | Script exec on click |
-| CWE-85 | Doubled Character XSS Manipulation | Low | Double-encoding bypass (``&amp;lt;`` → `<`) | Filter bypass |
-| CWE-86 | XSS via Invalid Characters in Identifiers | Low | NULL byte injection in tag names | Filter bypass |
-| CWE-87 | XSS via Alternate XSS Syntax | Medium | Non-standard script syntax (VBScript, SVG onload) | Filter bypass |
-| CWE-88 | XSS via HTML Entity Expansion | Low | Entity expansion creating HTML tags | Filter bypass |
-| CWE-89 | DOM-Based XSS | High | `document.write(location.hash)`, `innerHTML = user_input` | Client-side XSS |
+| CWE-79 | Basic XSS (no encoding) | High | Raw HTML injection without sanitization | Cookie theft |
+| CWE-79 | XSS via Error Message | Medium | Error pages reflecting user input as HTML | Phishing via error page |
+| CWE-79 | XSS via HTTP Header | Medium | User-controlled headers reflected without sanitization | Cookie theft |
+| CWE-79 | XSS via Script in Attributes | High | `onmouseover=`, `onerror=`, `onload=` in HTML attributes | Script exec |
+| CWE-79 | XSS via URI Scheme | Medium | `javascript:` URI in href/src attributes | Script exec on click |
+| CWE-79 | Doubled Character XSS Manipulation | Low | Double-encoding bypass (`&amp;lt;` → `<`) | Filter bypass |
+| CWE-79 | XSS via Invalid Characters in Identifiers | Low | NULL byte injection in tag names | Filter bypass |
+| CWE-79 | XSS via Alternate XSS Syntax | Medium | Non-standard script syntax (VBScript, SVG onload) | Filter bypass |
+| CWE-79 | XSS via HTML Entity Expansion | Low | Entity expansion creating HTML tags | Filter bypass |
+| CWE-79 | DOM-Based XSS | High | `document.write(location.hash)`, `innerHTML = user_input` | Client-side XSS |
 | CWE-90 | LDAP Injection | High | `*)(uid=*))(|(uid=*` in LDAP queries | Auth bypass, data exfil |
 | CWE-91 | Blind XPath Injection | High | Boolean-based XPath query injection | XML data exfil |
 | CWE-643 | XPath Injection | High | Unvalidated XPath query parameters | XML structure disclosure |
@@ -497,6 +527,60 @@ Load only the sections relevant to the active mode. Full file: load sections mat
 | CWE-916 | Use of Password Hash With Insufficient Computational Effort | High | Single SHA-256 iteration for passwords | GPU brute force |
 | CWE-1240 | Use of a Cryptographic Primitive with a Risky Implementation | High | Custom/broken implementation of standard | Implementation attack |
 
+### Crypto Detection Toolkit
+```bash
+# TLS/cipher audit (testssl.sh)
+testssl --severity HIGH https://target.com
+
+# Check certificate chain and expiration
+openssl s_client -connect target.com:443 -showcerts </dev/null 2>/dev/null | openssl x509 -text -noout
+
+# Check for weak SSH keys/algorithms
+ssh-audit target.com
+
+# Find hardcoded keys/secrets in source
+grep -rn 'BEGIN.*PRIVATE KEY\|secret_key\|api_key\|password\s*=\s*"' --include='*.py' --include='*.js' --include='*.go' .
+
+# Check JWT for alg:none, weak HMAC, missing signature
+curl -s https://target.com/api/me -H "Authorization: Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9." | jq .
+
+# Test for weak PRNG (check token predictability)
+# Collect 100+ tokens and run entropy analysis
+for i in $(seq 1 100); do curl -s https://target.com/reset-token | tee -a tokens.txt; done
+ent tokens.txt  # Check entropy (< 4 bits/byte = weak)
+
+# Check password hashing cost (bcrypt/scrypt/PBKDF2 rounds)
+# bcrypt cost < 10 = weak; PBKDF2 iterations < 100000 = weak
+```
+
+### DeFi/Crypto-Economic Detection Toolkit
+```bash
+# Slither static analysis for custom errors + reentrancy
+slither contracts/ --detect reentrancy-eth,reentrancy-no-eth,reentrancy-unlimited-gas
+
+# Echidna fuzzing for invariant violations
+echidna contracts/fuzz/InvariantTest.sol --contract InvariantTest --config echidna.yaml
+
+# Foundry invariant test (preferred over Echidna for complex invariants)
+forge test --match-test invariant_ -vvv
+
+# Certora formal verification (if rules exist)
+certoraRun contracts/MyContract.sol --verify MyContract:spec/MyContract.spec
+
+# Check for weak ECDSA nonce (blockchain)
+python3 -c "
+import requests
+# Fetch two transactions from same address, check if r values repeat (nonce reuse)
+tx1 = requests.get('https://api.etherscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash=0x...').json()
+tx2 = requests.get('https://api.etherscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash=0x...').json()
+# Same r = same k = private key recoverable
+"
+
+# Check contract upgrade safety (slither + manual)
+slither contracts/ --print contract-summary
+grep -rn 'selfdestruct\|delegatecall\|tx.origin' contracts/
+```
+
 ---
 
 ## CWE-7: Business Logic (agent: business-logic-agent) — ~50 CWEs
@@ -553,6 +637,44 @@ Load only the sections relevant to the active mode. Full file: load sections mat
 | Time-of-check time-of-use on payment | Check balance → delay → spend → withdraw | Overdraft |
 | Integer overflow in total | Order 2^31 items → overflow → $0 total | Free items |
 | Subscription lifecycle bypass | Cancel → use → refund → keep access | Free service |
+
+### Business Logic Detection Toolkit
+```bash
+# IDOR/authorization: brute-force sequential IDs and compare responses
+seq 100 200 | while read id; do
+  curl -s -o /dev/null -w "%{http_code} %{size_download}" \
+    "https://target.com/api/orders/$id" -H "Cookie: session=USER_A"
+done | sort | uniq -c
+
+# Mass assignment: send extra fields and check if they're accepted
+curl -X PATCH https://target.com/api/users/me \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","role":"admin","credit_balance":99999}' | jq .
+
+# Parameter pollution: send same param multiple times
+curl "https://target.com/api/transfer?to=attacker&amount=10&to=victim&amount=10000"
+
+# Negative value testing
+curl -X POST https://target.com/api/checkout \
+  -H "Content-Type: application/json" \
+  -d '{"product_id": 123, "quantity": -1, "coupon": "FLAT100"}'
+
+# Race condition: parallel requests with last-byte sync (Turbo Intruder / bc)
+printf 'POST /api/redeem HTTP/1.1\r\nHost: target.com\r\nCookie: s=XYZ\r\nContent-Length: 40\r\n\r\ncode=GIFT50' | \
+  nc -w1 target.com 80 &  # Send header, hold body
+printf 'POST /api/redeem HTTP/1.1\r\nHost: target.com\r\nCookie: s=XYZ\r\nContent-Length: 40\r\n\r\ncode=GIFT50' | \
+  nc -w1 target.com 80 &  # Second request
+wait  # Both bodies sent at once
+
+# Workflow skip: jump to later step directly
+curl -X POST https://target.com/checkout/confirm \
+  -d '{"order_id":"TEMP-123","payment_method":"none"}'  # Skip cart→address→payment
+
+# Coupon logic: test stacking, case variants, Unicode tricks
+curl "https://target.com/cart?coupon=SAVE10,SAVE20,SAVE50"
+curl "https://target.com/cart?coupon=SAVE1000"  # Non-existent code
+curl "https://target.com/cart?coupon=save10"    # Case variant
+```
 
 ---
 
@@ -1067,21 +1189,21 @@ Smart contract weaknesses use both CWE and the SWC (Smart Contract Weakness Clas
 
 ## Agent-to-CWE Quick Index
 
-| Agent | Primary CWE Ranges | Count |
-|-------|-------------------|-------|
-| web-api-agent | CWE-22..59, CWE-77..98, CWE-79..87, CWE-89..91, CWE-94..98, CWE-120..197, CWE-415..825, CWE-918 | ~280 |
-| access-control-agent | CWE-250..305, CWE-345..384, CWE-472..670, CWE-708..1293 | ~170 |
-| crypto-math-agent | CWE-310..351, CWE-522..548, CWE-759..780, CWE-916 | ~90 |
-| business-logic-agent | CWE-1284..1292, CWE-472, CWE-602, CWE-784, CWE-807, CWE-830..915 | ~50 |
-| race-condition-agent | CWE-362..414, CWE-543..820, CWE-1084 | ~35 |
-| smart-contract-agent | CWE-682, CWE-841 + SWC-100..136 | ~60 |
-| recon-agent | CWE-200..552, CWE-693..1041 | ~110 |
-| credential-leak-agent | CWE-200, CWE-259, CWE-312..548, CWE-798 | ~60 |
-| supply-chain-agent | CWE-427, CWE-494..1282 | ~40 |
-| http-smuggling-agent | CWE-436..444 | ~10 |
-| cache-poisoning-agent | CWE-436..444 (cache variant) | ~10 |
-| graphql-agent | CWE-89..918 (GraphQL variants) | ~20 |
-| mobile-client-agent | CWE-200..953 (mobile variants) | ~40 |
-| waf-bypass-agent | CWE-79, CWE-89, CWE-918 (bypass techniques) | ~15 |
+| Agent | Primary CWE Ranges | Coverage |
+|-------|-------------------|----------|
+| web-api-agent | CWE-22..59, CWE-77..98, CWE-79, CWE-89..91, CWE-94..98, CWE-120..197, CWE-415..825, CWE-918 | ~280 entries (injection, XSS, SSRF, memory) |
+| access-control-agent | CWE-250..305, CWE-345..384, CWE-472..670, CWE-708..1293 | ~170 entries (auth, session, authorization) |
+| crypto-math-agent | CWE-310..351, CWE-522..548, CWE-759..780, CWE-916 | ~90 entries (crypto, PRNG, key mgmt) |
+| business-logic-agent | CWE-1284..1292, CWE-472, CWE-602, CWE-784, CWE-807, CWE-830..915 | ~50 entries (workflow, validation, financial) |
+| race-condition-agent | CWE-362..414, CWE-543..820, CWE-1084 | ~35 entries (TOCTOU, concurrency) |
+| smart-contract-agent | CWE-682, CWE-841 + SWC-100..136 | ~60 entries (Solidity, DeFi patterns) |
+| recon-agent | CWE-200..552, CWE-693..1041 | ~110 entries (info leak, infra, cloud) |
+| credential-leak-agent | CWE-200, CWE-259, CWE-312..548, CWE-798 | ~60 entries (secrets exposure) |
+| supply-chain-agent | CWE-427, CWE-494..1282 | ~40 entries (CI/CD, deps, artifacts) |
+| http-smuggling-agent | CWE-436..444 | ~10 entries (desync, smuggling) |
+| cache-poisoning-agent | CWE-436..444 (cache variant) | ~10 entries (web cache) |
+| graphql-agent | CWE-89..918 (GraphQL variants) | ~20 entries (introspection, batching) |
+| mobile-client-agent | CWE-200..953 (mobile variants) | ~40 entries (Android/iOS) |
+| waf-bypass-agent | CWE-79, CWE-89, CWE-918 (bypass techniques) | ~15 entries (encoding, parser diff) |
 
-**Total unique CWEs covered: 1,047**
+**Total referenced entries: ~1,000** (CWEs appear in multiple sections where relevant — cross-cutting CWEs like CWE-79, CWE-89, CWE-200, CWE-918 are referenced in each applicable domain). **Estimated unique CWE IDs: ~550-600** after accounting for cross-section overlap. Each entry in its primary section includes concrete detection payloads and methodology.
