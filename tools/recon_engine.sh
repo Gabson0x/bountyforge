@@ -34,10 +34,14 @@ log() { echo "[$(date '+%H:%M:%S')] $*"; }
 # ---------------------------------------------------------------------------
 log "Phase 1/7: Subdomain enumeration for *.${TARGET}"
 
-# Subfinder
-if command -v subfinder &>/dev/null; then
-  subfinder -d "${TARGET}" -silent -all 2>/dev/null > "${TMP}/subfinder.txt" || true
-  log "  subfinder: $(wc -l < "${TMP}/subfinder.txt") found"
+# Subfaster
+if command -v subfaster &>/dev/null; then
+  subfaster -d "${TARGET}" -silent -all 2>/dev/null > "${TMP}/subfaster.txt" || true
+  log "  subfaster: $(wc -l < "${TMP}/subfaster.txt") found"
+elif command -v subfinder &>/dev/null; then
+  # Fallback: legacy subfinder
+  subfinder -d "${TARGET}" -silent -all 2>/dev/null > "${TMP}/subfaster.txt" || true
+  log "  subfaster (via subfinder fallback): $(wc -l < "${TMP}/subfaster.txt") found"
 fi
 
 # Assetfinder
@@ -62,7 +66,7 @@ if [ -n "${CHAOS_API_KEY:-}" ]; then
 fi
 
 # Merge and deduplicate
-cat "${TMP}"/subfinder.txt "${TMP}"/assetfinder.txt "${TMP}"/crtsh.txt "${TMP}"/chaos.txt 2>/dev/null | \
+cat "${TMP}"/subfaster.txt "${TMP}"/assetfinder.txt "${TMP}"/crtsh.txt "${TMP}"/chaos.txt 2>/dev/null | \
   grep -i "${TARGET}" | sort -u > "${RECON_DIR}/subs.txt"
 log "  Total unique subdomains: $(wc -l < "${RECON_DIR}/subs.txt")"
 

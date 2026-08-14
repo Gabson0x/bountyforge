@@ -264,7 +264,7 @@ Then build all bundles in a single Bash `cat` command:
 
 1. **`{bundle_dir}/source.md`** — all in-scope source files, each with `### path` header and fenced code block. **Cap at 3,000 lines.** If bigger, include first 1,000 + last 1,000 + 1,000 from middle, with `### TRUNCATED` markers.
 
-2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file + CWE domain section (see Turn 2.5). **Max 4 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 8 agents spawned per turn.**
+2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file + CWE domain section (see Turn 2.5). **Max 4 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 8 agents spawned per turn.** **The `rogue-agent.md` bundle is NEVER skipped — it's always in the spawn queue (DEFAULT ROGUE MODE).**
 
 ### Turn 2.5 — Load CWE Detection Patterns 🔍
 
@@ -327,9 +327,16 @@ In one message, spawn all applicable agents as parallel foreground Agent calls.
 | `smart-contract-agent` | EVM, Move, Solana, TRON structural + chain-specific bugs | Any smart contract audit |
 | `counter-intelligence-agent` | Honeypot detection, WAF traps, active defenders | When probing triggers unexpected 200s or generic responses |
 | `regression-agent` | Fix verification, bypass discovery, patch gaps | After bug fixes are deployed, retesting |
-| `rogue-agent` | Supply chain, protocol confusion, timing side-channels, env recon | Unconventional/chained attacks |
+| `rogue-agent` | Supply chain, protocol confusion, timing side-channels, env recon | **DEFAULT — spawned in EVERY hunt** alongside standard agents; unconventional/chained attacks |
 
 **Flexibility Rule:** If an agent encounters something interesting outside its domain, it should probe it immediately rather than ignore it. WAF bypass agent finds SQLi? Test it. Recon agent finds leaked creds? Validate them. Don't defer — confirm now.
+
+**DEFAULT ROGUE MODE — the orchestrator operates as a rogue agent by default:**
+
+- **`rogue-agent` is spawned in EVERY hunt, every turn** — never "last resort." It starts running its unconventional surfaces (dev workflow, error weaponization, self-referential attacks, timing side-channels, supply chain poisoning, logic bombs, protocol confusion, env recon — see `references/hacking-agents/rogue-agent.md`) in parallel while standard agents work the front door.
+- **Adopt the rogue mindset for the WHOLE hunt, not just one agent:** question every assumption in scope and tech ("does this actually gate anything?"), attack the developer workflow (CI/CD, git history, debug flags, docs), weaponize the target's own features against itself, and treat every 200/403/timeout as a data point.
+- **Rogue findings never sit alone:** every rogue lead is chained onto a standard agent's finding before reporting. A rogue lead with no chain partner is still reported if it passes the 7-Question Gate — rogue vectors (supply chain, timing oracles) often pay standalone.
+- **If all standard agents return zero findings:** rogue-agent keeps going — it does NOT stop when standard agents are empty. Rogue surfaces are the fallback that finds what conventional checks can't.
 
 ### Turn 4 — Deduplicate, Validate & Output
 
@@ -611,7 +618,7 @@ Client → CDN → Load Balancer → App Server → Database
 ## Standard Recon Pipeline
 ```bash
 # Step 1: Subdomains
-subfinder -d TARGET -silent | anew /tmp/subs.txt
+subfaster -d TARGET -silent | anew /tmp/subs.txt
 assetfinder --subs-only TARGET | anew /tmp/subs.txt
 
 # Step 2: Resolve + live hosts
@@ -1573,6 +1580,35 @@ npm publish  # with malicious postinstall script
 
 # PHASE 4: VALIDATE
 
+## SMART CONTRACT REASONING — 5-LAYER PRIORITY (applies to ALL contract hunting, before any gate)
+
+The criticals on audited code are rarely in the code. Rank effort by where bugs actually live:
+
+**Layer 1 — Deployment config, not contract code (biggest source of criticals on audited code).** The invariant is enforced in Solidity but violated at deploy time:
+- Rate provider / oracle pointed at a manipulatable spot price (Curve pool, short-window Uniswap TWAP, Balancer pool) instead of Chainlink → exchange rate manipulation → share-price theft
+- Decimal mismatch: rate provider returns 6 decimals where the accountant assumes 18 (10^12 error). Scaling helpers (e.g., `GenericRateProviderWithDecimalScaling`) only scale if `inputDecimals`/`outputDecimals` are set correctly at deploy
+- Ownership not actually renounced (`transferOwnership(address(0))` skipped), or `STRATEGIST_ROLE` held by a hot EOA
+- Two vaults sharing one accountant; a `manageRoot` computed against a stale decoder
+- **You CANNOT see this from source. It needs the live addresses + mainnet RPC.** When the code reads clean, request the deploy addresses and fork the chain — that IS the attack surface.
+
+**Layer 2 — Fork mainnet and run invariant fuzzers.** Criticals are found by simulating the state machine against live state (Foundry fork tests + `invariant_` fuzzing), not by more reading. Core invariants:
+- `totalAssets() == Σ(balances valued via getRate())` — break this → mint/drain
+- Share price monotonicity across deposit/withdraw/vest/postLoss sequences
+- First-depositor / donation inflation: `mulDivDown(ONE_SHARE, getRate())`; a donation or `claimFees` timing that shifts `getRate()` between enter and exit = classic repeatable-loss critical
+
+**Layer 3 — The integration layer, not the target.** The vault holds real tokens with real quirks; a decoder correct for the "canonical" ABI is wrong for the deployed variant:
+- stETH / rebasing / fee-on-transfer / 18-vs-6 tokens where a balance read or transfer assumption breaks
+- A token that's a proxy with different `decimals()`, or a token with a `beforeTokenTransfer` hook that re-enters
+- Read-only reentrancy via `getRate()` reading an external contract whose state can be manipulated in the same tx
+
+**Layer 4 — Chase new deployments and upgrades.** Protocols add tellers/decoders/adapters continuously; the newly added, unaudited contract is where the critical lives. A hardened adapter (fee/extension bounds added post-finding) means the NEXT one won't be. Watch the deployer address for fresh contracts and audit them before the program updates scope.
+
+**Layer 5 — Chain a medium into a critical.** A single small bug is a Medium; the same bug made repeatable is a Critical. A 1-wei accounting drift in `payoutSplits` (balance - 1) or a rounding direction in `mulDivDown` compounded over N deposits becomes an extractable loss.
+
+**The uncomfortable truth:** if the audited code is sound, the critical is at Layer 1 (config/oracle targets) or Layer 2 (fork-fuzzing `getRate()` against a manipulatable feed) — both need live chain access, not more file reads. When file reads run dry: request deployment addresses + RPC, fork, and fuzz. That's not a limitation; that's the attack surface.
+
+---
+
 ## The 7-Question Gate (Run BEFORE Writing ANY Report)
 
 All 7 must be YES. Any NO → STOP. See also `references/supervisor.md` for detailed triage flow and `references/al-mizaan-gates.md` for deep validation methodology.
@@ -1598,6 +1634,58 @@ Check the list below. If it's there and you can't chain it → KILL IT.
 ### Q7: Would a triager reading this say "yes, that's a real bug"?
 Read your report as if you're a tired triager at 5pm on a Friday. Does it pass?
 
+---
+
+### ⛓️ 7-Question Gate — Smart Contract Track (USE FOR ALL CONTRACT FINDINGS)
+
+The web2 gate kills good contract bugs — "real user", "PII/ATO/RCE" don't translate to a DeFi protocol. For `--solidity` / `--move` / `--solana` findings, run THIS gate instead. All 7 must be YES. If a finding passes, the Al-Mizaan deep gates below are optional, not required.
+
+### Q1 (SC): Can I exploit this RIGHT NOW with a working PoC?
+Write a running Foundry/Hardhat test (or fork script) that triggers the path and asserts the damage. Static code observation, "this line looks wrong", or unexecuted speculation → KILL IT. PoC must execute against a fork of the deployed chain or a local EVM node.
+
+**Counter-pattern (Gate 1):** "It's documented" / "it matches upstream design" is NOT an automatic refutation. Rejecting on that requires actually having read the upstream source — citing another protocol's behavior without seeing its code (e.g., "Camelot does the same with xGRAIL") is a miss, not a defense. Docs describe intent; deployed bytecode is reality. If you reject on documentation, show the upstream code doing the same thing.
+
+### Q2 (SC): Is the triggerer someone the protocol does NOT intend to be the actor?
+Ask: "Who does the protocol DESIGN to call this?" If only `onlyOwner`/governance/`onlyRole` can trigger it and it's working as designed → intended, KILL. If ANY other party (user, third-party contract, griefer, LP depositor) can reach the vulnerable path — even with clever conditions — it's valid. Trusted-actor trigger WITH a governance bypass still passes.
+
+**Counter-pattern (Gate 2):** "Requires an oracle misreport" is NOT an auto-kill. Before rejecting, check for an honest-path route to the same vulnerable state (e.g., the Lido `onchainTotalValueOnRefSlot` case — the state was reachable with HONEST oracle data, making the "oracle manipulation" precondition unnecessary). If an honest path exists, the finding stands without the oracle caveat.
+
+**Counter-pattern (Gate 3):** "Requires the exiting holder's cooperation" is NOT an auto-kill when the state transition is public and observable on-chain (e.g., an xSilo `totalSupply → 0` after exit). The attacker can front-run the public transition — that makes it attacker-triggerable, not victim-cooperative. Precondition = a transaction the victim will unavoidably submit, not a deliberate action on their part.
+
+### Q3 (SC): Is impact concrete in protocol-native terms?
+"Technically possible" is not impact. Quantify: exact funds stolen/locked (wei, token amounts, USD), accounting desync amount, invariant breach (name the invariant verbatim from the code/docs), permanent DoS of someone's funds, oracle manipulation with real profit margin. No number = no finding.
+
+**Counter-pattern (Gate 4):** Split self-harm into actor-scoped legs. An attack that looks like "self-harm" often has SEPARATE victims per leg: the exiter's penalty loss is evaluated as its own leg, and the front-runner's captured residual is another leg — one leg being self-inflicted does NOT kill the other leg's valid impact. Name the victim for every leg before rejecting as "self-harm."
+
+### Q4 (SC): Is this in scope per the program policy?
+Deployed contract on the listed chain, and the exact version verified on-chain (etherscan/solscan match the audited source). Testnets, old unpinned versions, `interfaces/`, `lib/`, `mocks/`, `*.t.sol`, `*Mock*` → KILL.
+
+### Q5 (SC): Did I check known-issue history for duplicates?
+Search: Immunefi/Sherlock/Code4rena contest history for this protocol, ALL prior audit reports (in the repo's `audits/` or docs), `CHANGELOG.md`, README "known issues" sections, and previous bounty submissions. Duplicate → KILL.
+
+### Q6 (SC): Is this NOT on the contract always-rejected list?
+- Theoretical / no working PoC → KILL
+- Trusted-actor-only with no bypass → KILL
+- View/read-only fn returning wrong value with no downstream effect → KILL
+- Admin backdoor behaving as documented → KILL
+- MEV-dependence the protocol explicitly accepts (e.g., sandwichable AMMs) → KILL unless the profit exceeds documented slippage bounds
+- Sub-$1 dust profit that breaks no invariant → KILL (unless part of a bigger chain)
+
+### Q7 (SC): Would a DeFi-literate judge say "yes, that's a real bug"?
+Read it as an Immunefi/Sherlock judge: quote the invariant, trace the exact exploitable call path, show the PoC result. If the judge could argue "edge case, working as intended" and you can't pre-kill that argument → KILL.
+
+**Smart contract quick-kill rules (before you even write the report):**
+- No `forge test` PoC against a fork → DEMOTE to lead, not a finding
+- Trigger only via `onlyOwner`/governance → KILL unless you have a governance bypass
+- Code in `lib/`, `interfaces/`, `mocks/`, `test/` → KILL (scanner noise)
+- "Docs say X but code does Y" → code is authoritative, report the code behavior
+- Compiler version is old but function unreachable → KILL (reachability before severity)
+
+**Severity rule — "transient DoS" is only valid if it self-resolves:**
+Never call something a "transient DoS" without confirming the recovery path actually exists and executes on its own (a timelock that expires, a keeper that is guaranteed to run, a function any user can call to restore). If recovery depends on an action a specific party may never take, or on conditions you have not verified, score it as permanent DoS (or drop it if no DoS is provable). Assumed recovery = inflated severity.
+
+---
+
 ### Deep Validation: Al-Mizaan v3 Gates (for borderline or complex findings) ⚡ On-Demand
 
 The 7 gates below are self-contained. **Do NOT load `references/al-mizaan-gates.md` unless you need the full methodology with web/API translations and Sherlock contest evidence.** Use this inline version for 95% of cases.
@@ -1606,10 +1694,10 @@ When a finding passes the 7-Question Gate but feels borderline, involves complex
 
 1. **Code Reading** — Does the code actually execute the vulnerable path? (Not docs, not comments)
 2. **Reachability Chain** — Map the exact call path from external entry point to vulnerable operation
-3. **Threat Model** — Who can trigger it? Trusted actor only with no bypass? → ELIMINATE
+3. **Threat Model** — Who can trigger it? Trusted actor only with no bypass? → ELIMINATE. **Counter-patterns:** "requires oracle misreport" ≠ auto-kill — check for an honest-path route to the same state (Lido `onchainTotalValueOnRefSlot`). "Requires victim cooperation" ≠ auto-kill — a public on-chain state transition (e.g., xSilo `totalSupply → 0`) is front-runnable and therefore attacker-triggerable.
 4. **Invariant Breach** — What protocol security property is violated?
-5. **Protocol Intent** — Would the designers call this a bug or a feature?
-6. **Impact** — Quantify concrete harm in native terms (exact amount, not "could be significant")
+5. **Protocol Intent** — Would the designers call this a bug or a feature? **Counter-pattern:** "documented" / "matches upstream design" refutations require actually reading the upstream source — citing another protocol (e.g., "Camelot does the same with xGRAIL") without seeing its code is a miss, not a defense. Verify upstream bytecode before rejecting.
+6. **Impact** — Quantify concrete harm in native terms (exact amount, not "could be significant"). **Counter-pattern:** split self-harm into actor-scoped legs — the exiter's penalty loss and a front-runner's captured residual are SEPARATE victims; one self-inflicted leg does not kill the other leg's impact. **Severity:** "transient DoS" requires a confirmed self-resolving recovery path, else score as permanent DoS.
 7. **Formal Proof** — Working PoC that executes against a realistic environment
 
 **Quick kill rules (from Al-Mizaan + Slither benchmark lesson):**
@@ -1990,7 +2078,7 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 **Full pipeline (single target):**
 ```bash
 # Phase 1: Recon → seed live-hosts.txt and urls.txt
-# (run recon tools first: subfinder + httpx + katana)
+# (run recon tools first: subfaster + httpx + katana)
 
 # Phase 2: Hunt with active injection + JSON output
 python3 tools/hunt.py --target TARGET --active --json 2>/dev/null | tee findings.json

@@ -1,5 +1,38 @@
 # Changelog
 
+## v3.2.2 (2026-08-14)
+
+### Added
+- **Smart Contract 5-Layer Reasoning** — new directive section in PHASE 4 applying to ALL contract hunting: (1) deployment config over contract code — oracle/rate-provider targets, decimal mismatches, unrenounced ownership, shared accountants; needs live addresses + mainnet RPC, (2) fork mainnet + invariant fuzzers (`totalAssets() == Σ(getRate())`, share-price monotonicity, first-depositor/donation inflation), (3) integration layer — stETH/rebasing/FoT/decimals quirks, read-only reentrancy, (4) chase new deployments/upgrades before scope updates, (5) chain a medium into a critical. Includes "the uncomfortable truth": sound audited code means the critical lives at Layers 1-2, requiring chain access, not more file reads.
+
+---
+
+## v3.2.1 (2026-08-13)
+
+### Added
+- **Counter-Patterns (anti-refutation rules)** baked into the Smart Contract 7-Question Gate track and Al-Mizaan deep gates, sourced from real gate misses:
+  - Gate 1: "documented" / "matches upstream design" is no longer an automatic refutation — refutations require actually reading the upstream source (Camelot xGRAIL cited without seeing Camelot's source = miss, not defense)
+  - Gate 2: rejecting on "requires oracle misreport" now forces a check for an honest-path route to the same state (Lido `onchainTotalValueOnRefSlot`)
+  - Gate 3: front-running a public state transition (xSilo `totalSupply → 0`) is now explicitly attacker-triggerable, not "requires the exiting holder's cooperation"
+  - Gate 4: split self-harm into actor-scoped legs — the exiter's penalty loss and the front-runner's captured residual are evaluated against separate victims
+  - Severity: "transient DoS" requires a confirmed self-resolving recovery path, else score as permanent DoS
+
+---
+
+## v3.2.0 (2026-08-13)
+
+### Added
+- **Smart Contract 7-Question Gate track** — new `⛓️ 7-Question Gate — Smart Contract Track` in PHASE 4 for `--solidity` / `--move` / `--solana` findings. Reframes the gate in protocol-native terms: forge PoC instead of HTTP request, attacker-not-intended-actor instead of "real user", quantified funds/invariant instead of PII/ATO/RCE, Immunefi/Sherlock/audit-history dedup, and a contract always-rejected list (trusted-actor-only, unreachable code, dust profit). Al-Mizaan deep gates are now optional for findings that pass the SC track.
+- **DEFAULT ROGUE MODE** — `rogue-agent` is now spawned in EVERY hunt by default (no longer a zero-findings last resort). Its bundle is never skipped in Turn 2/3. Orchestrator adopts the rogue mindset for the whole hunt: question assumptions, attack developer workflow, weaponize target features, chain rogue leads onto standard findings. See `references/hacking-agents/rogue-agent.md`.
+
+### Changed
+- **Recon tooling** — `subfinder` replaced with `subfaster` in SKILL.md recon pipeline and `tools/recon_engine.sh` (with legacy subfinder fallback).
+
+### Fixed
+- Removed last-resort framing from rogue-agent description so it actually runs on every hunt instead of only after standard agents return zero findings.
+
+---
+
 ## v3.1.0 (2026-08-11)
 
 ### Added
