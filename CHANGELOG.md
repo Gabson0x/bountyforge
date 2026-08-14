@@ -1,5 +1,21 @@
 # Changelog
 
+## v3.2.3 (2026-08-14)
+
+### Added
+- **DEFAULT CORE MODE — six always-on attackers** (expanded from DEFAULT ROGUE MODE): `rogue-agent`, `counter-intelligence-agent`, `credential-leak-agent`, `access-control-agent`, `business-logic-agent`, and `race-condition-agent` are now spawned in EVERY hunt, every turn — their bundles are never skipped in Turn 2/3, and their CWE sections are always loaded (Turn 2.5). Domain agents (web-api, smart-contract, recon, etc.) are added on top by target type. Per-turn agent cap raised 8 → 10 (6 core + up to 4 domain). The core keeps hunting when domain agents return zero findings, and all core leads chain onto domain findings before reporting.
+- **WILD MODE — Cheat-System Doctrine (default hunting behavior)** — new `references/wild-mode.md`, always loaded, shifts the skill from "reviewer" to "cheater" mindset:
+  - **Payload-first lobbying:** every LEAD now carries a mandatory `payload:` + `probe_results:` + `chain_partners:` field (updated `shared-rules.md` output format). No lead is written without firing a weapon at it.
+  - **No ceilings in the hunt phase:** gates (7-Question Gate, Al-Mizaan, 4-gate judging, "always rejected" lists) are explicitly report-phase filters only. A gate-killed finding is demoted to a lead with its payload and chain partners — never deleted, retested next pass.
+  - **System social engineering:** deception table (identity / authority / state / time / perception / cost / composability lies) plus the 8 Cheat Questions run on every feature, in `references/wild-mode.md` Rules 3-4.
+  - **Cheat-the-Engine sections** added to `web-api-agent.md` and `smart-contract-agent.md` — each agent now starts by enumerating the lies its target's engine can be made to believe before running its attack plan.
+
+### Changed
+- `SKILL.md`: WILD MODE doctrine wired in after CRITICAL RULES; `wild-mode.md` added to always-loaded reference set; 7-Question Gate and ALWAYS REJECTED sections annotated so report-time strictness never leaks into the hunt. Judging gates now demote-with-payload instead of discarding.
+- `references/judging.md`: preamble declaring gates report-phase-only; Gate 1 refutation requires a fired payload before "speculative" kills are allowed.
+
+---
+
 ## v3.2.2 (2026-08-14)
 
 ### Added

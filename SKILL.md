@@ -88,7 +88,7 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 
 ## CRITICAL RULES
 
-**0. CONTEXT BUDGET** — This skill + references = ~10,000 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 4 ref files per agent bundle (incl. CWE section). Max 8 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
+**0. CONTEXT BUDGET** — This skill + references = ~10,000 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 4 ref files per agent bundle (incl. CWE section). Max 10 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
 
 1. **READ FULL SCOPE FIRST** — verify every asset/domain is owned by the target org
 2. **NO THEORETICAL BUGS** — "Can an attacker steal funds, leak PII, takeover account, or execute code RIGHT NOW?" If no, STOP.
@@ -112,6 +112,24 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 20. **CHAIN FREELY** — if bug A has even a slight connection to bug B, try chaining them before reporting separately
 21. **WHEN IN DOUBT, PROBE** — uncertain if a path is exploitable? Run 3 quick PoCs. If none work, move on. If one works, go deep
 22. **DON'T ASK, SHOW** — don't ask if you should test something. Just test it. Show the result
+
+---
+
+## ⚡ WILD MODE — Default Hunting Doctrine (Cheat-System Mindset)
+
+**Wild mode is ON by default for every hunt. Full doctrine: `references/wild-mode.md` (always loaded).**
+
+You are a cheater, not a reviewer. Every target is an engine with rules; your job is to find the input combination that makes it violate its own rules. The engine was built by someone who believed something — find what they believed, and break it.
+
+**Hunting phase = no ceilings. Report phase = gates as written.**
+
+- **Every lead gets a payload immediately.** Never output a LEAD without a `payload:` field. Never classify before you fire. Payload cost is seconds; a probe costs nothing; skipping one can kill a critical chain silently.
+- **Nothing is rejected during the hunt.** The 7-Question Gate, Al-Mizaan gates, "always rejected" lists, and 4-gate judging are **REPORT filters only** — they decide what gets submitted, never what gets probed. A gate-killed finding becomes a lead with a payload and a chain partner, not garbage.
+- **"Too unlikely" and "too obvious" are not reasons to skip.** Preconditions are a spec for your payload, not an excuse. The only hard stop is authorization: test only targets you have permission to test.
+- **System social engineering:** trick the engine into believing false things about identity (token swap, mass assignment, auth headers), authority (internal endpoints, role claims, privileged init), state (payment skip, race, replay), time (replay signatures, expired tokens), perception (encoding, parser differentials), and composability (chain every lead). Full deception table in `references/wild-mode.md` Rule 3.
+- **Run the 8 Cheat Questions on every feature** (wild-mode.md Rule 4): What's the cheapest way to get this without paying? What if I do it twice/in parallel/wrong order? What does the engine trust that it shouldn't? What if I give it more/less than expected? What does the confused/error path do? What does the engineer believe that's false? What platform weapons did the target ship me (webhooks, caches, rate limits, recovery flows, fallback functions, upgrades)?
+- **Chain or die.** Two lows = one high. A read bug chains into a write bug. A bug on one endpoint chains into the identical pattern on every sibling — probe all siblings first.
+- **Rules 2, 3, 7, 10 above apply at REPORT time, not probe time.** During the hunt: theoretical = probe it anyway, weak = probe harder, "nothing after 5 min" = switch surfaces (recovery flows, integrations, sibling endpoints) before switching targets.
 
 ---
 
@@ -237,7 +255,7 @@ Full methodology available in `references/sis-intelligence.md` — load only whe
 
 **Only load files relevant to the detected mode.** Never load all references at once.
 
-**Always loaded (all modes):** `{resolved_path}/judging.md`, `{resolved_path}/supervisor.md`
+**Always loaded (all modes):** `{resolved_path}/judging.md`, `{resolved_path}/supervisor.md`, `{resolved_path}/wild-mode.md`
 
 **Mode-gated (load only what matches):**
 
@@ -264,13 +282,13 @@ Then build all bundles in a single Bash `cat` command:
 
 1. **`{bundle_dir}/source.md`** — all in-scope source files, each with `### path` header and fenced code block. **Cap at 3,000 lines.** If bigger, include first 1,000 + last 1,000 + 1,000 from middle, with `### TRUNCATED` markers.
 
-2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file + CWE domain section (see Turn 2.5). **Max 4 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 8 agents spawned per turn.** **The `rogue-agent.md` bundle is NEVER skipped — it's always in the spawn queue (DEFAULT ROGUE MODE).**
+2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file + CWE domain section (see Turn 2.5). **Max 4 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 10 agents spawned per turn.** **The CORE SPAWN SET bundles are NEVER skipped — always in the spawn queue: `rogue-agent.md`, `counter-intelligence-agent.md`, `credential-leak-agent.md`, `access-control-agent.md`, `business-logic-agent.md`, `race-condition-agent.md` (DEFAULT CORE MODE).** Domain agents (web-api, smart-contract, recon, etc.) join the core depending on target type.
 
 ### Turn 2.5 — Load CWE Detection Patterns 🔍
 
 **For every agent being spawned, load its relevant CWE domain section from `references/cwe-knowledge-base.md`.** This gives each agent concrete detection payloads, grep patterns, and fuzzing strategies for its bug class assignments.
 
-Load only the section matching the agent's domain — never the full file:
+Load only the section matching the agent's domain — never the full file. **CORE SPAWN SET sections are ALWAYS loaded in every hunt** (they're always spawned): Section 4-5 (Auth, Authorization) for access-control, Section 7 (Business Logic) for business-logic, Section 8 (Race Conditions) for race-condition, Section 9 (Info Leakage) for credential-leak, Section 16 (Smuggling & Cache) for counter-intelligence, and Sections 11-12 + 14 (Infra, CI/CD & Supply Chain, Cloud) for rogue-agent.
 
 | Agent | CWE Section to Load | Lines | Key Detection Content |
 |-------|-------------------|-------|----------------------|
@@ -308,16 +326,18 @@ In one message, spawn all applicable agents as parallel foreground Agent calls.
 
 | Agent | Domain | When to Use |
 |-------|--------|-------------|
+| `rogue-agent` | Supply chain, protocol confusion, timing side-channels, env recon | **CORE — ALWAYS spawned**; unconventional/chained attacks |
+| `counter-intelligence-agent` | Honeypot detection, WAF traps, active defenders | **CORE — ALWAYS spawned**; protects the whole hunt from traps, logs every failure as intel |
+| `credential-leak-agent` | GitHub tokens, .env, build log secrets | **CORE — ALWAYS spawned**; secret hunting on source + JS + git history |
+| `access-control-agent` | IDOR, privilege escalation, SSO bypass | **CORE — ALWAYS spawned**; auth/authz is the #1 paid bug class on every target type |
+| `business-logic-agent` | State machine, payments, account abuse | **CORE — ALWAYS spawned**; workflow/limit abuse pays on every target type |
+| `race-condition-agent` | TOCTOU, front-running, concurrency | **CORE — ALWAYS spawned**; races compound into crits on financial/time-sensitive ops + contracts |
 | `recon-agent` | Infrastructure, subdomains, exposed services | Start of any external target |
 | `web-api-agent` | Injection, auth, XSS, SSRF, smuggling | Any web/API target |
-| `access-control-agent` | IDOR, privilege escalation, SSO bypass | Auth/authz testing |
-| `business-logic-agent` | State machine, payments, account abuse | Workflow testing |
-| `race-condition-agent` | TOCTOU, front-running, concurrency | Financial/time-sensitive ops |
 | `waf-bypass-agent` | WAF detection + bypass techniques | When payloads are blocked by WAF/CDN |
 | `temp-email-agent` | Disposable email, verification bypass | Multi-account testing, ATO chains |
 | `browser-automation-agent` | Playwright, OAuth flows, session extraction | Auth flow automation |
 | `graphql-agent` | Introspection, batching, missing auth | GraphQL APIs |
-| `credential-leak-agent` | GitHub tokens, .env, build log secrets | Secret hunting |
 | `supply-chain-agent` | npm/Gem/PyPI squatting, CI/CD poisoning | Dependency analysis |
 | `http-smuggling-agent` | CL.TE/TE.CL desync, session hijack | Proxy/CDN targets |
 | `cache-poisoning-agent` | Unkeyed headers, CSP bypass, cache deception | CDN-backed targets |
@@ -325,18 +345,24 @@ In one message, spawn all applicable agents as parallel foreground Agent calls.
 | `crypto-math-agent` | Overflow, precision, signatures | Smart contract math |
 | `economic-security-agent` | Flash loans, oracle manipulation | DeFi/protocol economics |
 | `smart-contract-agent` | EVM, Move, Solana, TRON structural + chain-specific bugs | Any smart contract audit |
-| `counter-intelligence-agent` | Honeypot detection, WAF traps, active defenders | When probing triggers unexpected 200s or generic responses |
 | `regression-agent` | Fix verification, bypass discovery, patch gaps | After bug fixes are deployed, retesting |
-| `rogue-agent` | Supply chain, protocol confusion, timing side-channels, env recon | **DEFAULT — spawned in EVERY hunt** alongside standard agents; unconventional/chained attacks |
 
 **Flexibility Rule:** If an agent encounters something interesting outside its domain, it should probe it immediately rather than ignore it. WAF bypass agent finds SQLi? Test it. Recon agent finds leaked creds? Validate them. Don't defer — confirm now.
 
-**DEFAULT ROGUE MODE — the orchestrator operates as a rogue agent by default:**
+**DEFAULT CORE MODE — the orchestrator runs a permanent core of always-on attackers:**
 
-- **`rogue-agent` is spawned in EVERY hunt, every turn** — never "last resort." It starts running its unconventional surfaces (dev workflow, error weaponization, self-referential attacks, timing side-channels, supply chain poisoning, logic bombs, protocol confusion, env recon — see `references/hacking-agents/rogue-agent.md`) in parallel while standard agents work the front door.
-- **Adopt the rogue mindset for the WHOLE hunt, not just one agent:** question every assumption in scope and tech ("does this actually gate anything?"), attack the developer workflow (CI/CD, git history, debug flags, docs), weaponize the target's own features against itself, and treat every 200/403/timeout as a data point.
-- **Rogue findings never sit alone:** every rogue lead is chained onto a standard agent's finding before reporting. A rogue lead with no chain partner is still reported if it passes the 7-Question Gate — rogue vectors (supply chain, timing oracles) often pay standalone.
-- **If all standard agents return zero findings:** rogue-agent keeps going — it does NOT stop when standard agents are empty. Rogue surfaces are the fallback that finds what conventional checks can't.
+The six CORE agents below are spawned in EVERY hunt, every turn — never conditional, never "last resort." Domain agents are added on top based on target type (web-api-agent for web/API, smart-contract-agent for contracts, recon-agent for external targets, etc.). **6 core + up to 4 domain agents = 10 max per turn.**
+
+- **`rogue-agent`** — unconventional surfaces (dev workflow, error weaponization, self-referential attacks, timing side-channels, supply chain poisoning, logic bombs, protocol confusion, env recon — see `references/hacking-agents/rogue-agent.md`) run in parallel while standard agents work the front door.
+- **`counter-intelligence-agent`** — maps the target's defenses (honeypots, WAF traps, active defenders, canaries) and broadcasts ALERTs so no other agent wastes probes on trapped ground. Every "no" the target gives it is logged as intel, not failure.
+- **`credential-leak-agent`** — hunts secrets in source, JS bundles, build logs, git history, Docker images, compiled apps. Credential leaks are the highest $/hour class in the skill and chain into everything.
+- **`access-control-agent`** — IDOR, privilege escalation, SSO/OAuth bypass, role abuse, unprotected initializers. Runs on web AND smart contracts (init hijack, role grants, proxy admin).
+- **`business-logic-agent`** — state machines, payment flows, limits, workflow skips, coupon/balance abuse, quota bypass. The most-hunted, highest-paid class.
+- **`race-condition-agent`** — TOCTOU, front-running, double-spend, rotation-window races, parallel request races. Applies to web endpoints and contract state transitions.
+
+- **Adopt the core mindset for the WHOLE hunt, not just these agents:** question every assumption in scope and tech ("does this actually gate anything?"), attack the developer workflow (CI/CD, git history, debug flags, docs), weaponize the target's own features against itself, and treat every 200/403/timeout as a data point.
+- **Core findings never sit alone:** every core lead is chained onto a domain agent's finding before reporting. A core lead with no chain partner is still reported if it passes the 7-Question Gate — rogue vectors (supply chain, timing oracles) often pay standalone.
+- **If all domain agents return zero findings:** the CORE keeps going — it does NOT stop when domain agents are empty. Core surfaces are the fallback that finds what conventional checks can't.
 
 ### Turn 4 — Deduplicate, Validate & Output
 
@@ -1611,6 +1637,8 @@ The criticals on audited code are rarely in the code. Rank effort by where bugs 
 
 ## The 7-Question Gate (Run BEFORE Writing ANY Report)
 
+> **HUNT vs REPORT (wild mode):** These gates are the LAST step of the pipeline — they filter what gets SUBMITTED. They are never run during the hunt, never kill a probe, and never delete a lead. A finding that fails a gate is demoted to a LEAD with its payload and its chain partners, and retested on the next pass. **Firing a payload is always allowed; the gates only decide what a human triager reads.**
+
 All 7 must be YES. Any NO → STOP. See also `references/supervisor.md` for detailed triage flow and `references/al-mizaan-gates.md` for deep validation methodology.
 
 ### Q1: Can I exploit this RIGHT NOW with a real PoC?
@@ -1881,6 +1909,8 @@ Below 60 → LEAD only (no fix, no PoC).
 ---
 
 ## ALWAYS REJECTED — Never Submit These
+
+> **Wild-mode note:** this list kills standalone SUBMISSIONS, not hunting avenues. Every entry below has a chain partner (see "Conditionally Valid With Chain" below) — if you found one, find the partner before dropping it. Open redirect alone → N/A. Open redirect → OAuth code theft → ATO. The list is the chain menu, not a stop sign.
 
 Missing CSP/HSTS/security headers, missing SPF/DKIM/DMARC, GraphQL introspection alone, banner/version disclosure without working CVE exploit, clickjacking on non-sensitive pages, tabnabbing, CSV injection, CORS wildcard without credential exfil PoC, logout CSRF, self-XSS, open redirect alone, OAuth client_secret in mobile app, SSRF DNS-ping only, host header injection alone, no rate limit on non-critical forms, session not invalidated on logout, concurrent sessions, internal IP disclosure, mixed content, SSL weak ciphers, missing HttpOnly/Secure cookie flags alone, broken external links, pre-account takeover, autocomplete on password fields.
 

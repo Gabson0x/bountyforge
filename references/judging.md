@@ -1,6 +1,8 @@
 # Finding Gate Evaluation (Judging)
 
-Every deduplicated finding passes four sequential gates. Fail any gate → **REJECTED** or **DEMOTED** to LEAD. Later gates are not evaluated for failed findings.
+> **WILD MODE preamble:** These gates govern REPORTING only. They are the last step before a report reaches a triager — never a hunting constraint, never a reason to skip a probe, never a deletion tool. Every finding that fails a gate is **demoted, not deleted**: it becomes a LEAD with its payload preserved, its chain partners listed, and its `probe_results` recorded, and it is retested or chained on the next pass. A gate-killed finding that later gains a chain partner returns as a FINDING. During the hunt: probe everything, judge nothing early.
+
+Every deduplicated finding passes four sequential gates. Fail any gate → **REJECTED** or **DEMOTED** to LEAD (with payload + chain partner list attached). Later gates are not evaluated for failed findings.
 
 ---
 
@@ -8,8 +10,8 @@ Every deduplicated finding passes four sequential gates. Fail any gate → **REJ
 
 Construct the strongest argument that the finding is wrong. Find the guard, check, or constraint that kills the attack — quote the exact line and trace how it blocks the claimed step.
 
-- **Concrete refutation** (a specific guard blocks the exact claimed step) → **REJECTED** (or **DEMOTE** if a code smell remains worth investigating)
-- **Speculative refutation** ("probably wouldn't happen", "likely intended") → **clears**, continue to Gate 2
+- **Concrete refutation** (a specific guard blocks the exact claimed step) → **REJECTED** (or **DEMOTE** if a code smell remains worth investigating). In wild mode, "rejected" means: attach the payload + chain partner list and move it to the lead pool for the next pass — the finding is not deleted, it is queued.
+- **Speculative refutation** ("probably wouldn't happen", "likely intended") → **clears**, continue to Gate 2. Never kill on "probably" — fire the payload and let the response decide.
 
 ---
 
