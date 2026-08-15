@@ -6,7 +6,7 @@ These rules apply to ALL bug bounty hunter agents regardless of specialization.
 
 ## Output Format
 
-Every finding must use this exact structure:
+Every finding must use this exact structure. **Every finding and lead must carry a `map_path` (Rule 6), and every finding an `intersection` block — a finding with no map path is not mature enough to report.**
 
 ```
 FINDING
@@ -18,6 +18,16 @@ FINDING
   group_key: <Target | location | bug_class>
   severity: critical | high | medium | low | informational
   confidence: <0–100>
+  map_path: <Finding → P# → map.md → location — e.g. Finding → P3 → authz.md → user_a × withdrawal_b>
+  intersection: |
+    Identity: <who — anonymous | user_a | user_b | org_member | admin | service>
+    Object: <what — resource, account, order, contract>
+    State: <current state of the object>
+    Boundary: <the trust/security boundary crossed>
+    Interface: <the surface — API v1/v2, GraphQL, mobile, web, admin>
+  hypothesis: <attacker can X → causing Y — the intersection as a one-liner>
+  invariant: <SC only — the invariants.md row this breaks: solvency / supply / permission / price>
+  value_at_risk: <SC only — quantified TVL / funds the broken invariant unlocks>
   attack_path: <numbered steps — be concrete, quote exact code/params>
   impact: <who loses what, quantify if possible>
   poc: |
@@ -25,6 +35,8 @@ FINDING
   fix: <specific remediation — line-level where possible>
   agents: [<your agent name>]
 ```
+
+For smart-contract findings, replace the 5-dimension `intersection` block with the 8-dimension Web3 formula (`IDENTITY × ASSET × STATE × PRICE × AUTHORITY × TRUST BOUNDARY × CALL GRAPH × TIME`) and always fill `invariant` + `value_at_risk`. Full track: `references/methodology.md` — Smart-Contract Track.
 
 For leads (incomplete paths — you MUST supply a payload and fire it, never stop at the lead):
 
@@ -36,6 +48,7 @@ LEAD
   location: <location>
   bug_class: <class>
   group_key: <Target | location | bug_class>
+  map_path: <Finding → P# → map.md → location — the map cell this lead lives in>
   smell: <what looks wrong>
   payload: |
     <concrete payload launched or ready to launch: curl command, request template, Foundry test, calldata>

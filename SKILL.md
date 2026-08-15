@@ -86,32 +86,43 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 
 ---
 
-## CRITICAL RULES
+## PILLARS & RULES — The Methodology Spine
 
-**0. CONTEXT BUDGET** — This skill + references = ~10,000 lines. Do NOT load everything. Mode-gate all reference reads (Turn 2). Max 4 ref files per agent bundle (incl. CWE section). Max 10 agents per turn. Skip SIS-MD for pure contract audits. Skip isolation check for < 3 agents. Inline summaries over full file loads. Every unused reference file you load is signal you're burning.
+**The hunt is driven by 5 maps, not individual endpoints. Build all 5 maps before hunting. Full detail: `references/methodology.md` (always loaded).**
 
-1. **READ FULL SCOPE FIRST** — verify every asset/domain is owned by the target org
-2. **NO THEORETICAL BUGS** — "Can an attacker steal funds, leak PII, takeover account, or execute code RIGHT NOW?" If no, STOP.
-3. **KILL WEAK FINDINGS FAST** — run the 7-Question Gate BEFORE writing any report
-4. **Validate before writing** — check CHANGELOG, design docs, deployment scripts FIRST
-5. **One bug class at a time** — go deep, don't spray
-6. **Verify data isn't already public** — check web UI in incognito before reporting API "leaks"
-7. **5-MINUTE RULE** — if a target shows nothing after 5 min probing (all 401/403/404), MOVE ON
-8. **IMPACT-FIRST HUNTING** — ask "what's the worst thing if auth was broken?" If nothing valuable, skip target
-9. **CREDENTIAL LEAKS need exploitation proof** — finding keys isn't enough, must PROVE what they access
-10. **STOP SHALLOW RECON SPIRALS** — don't probe 403s forever, don't grep for analytics keys endlessly
-11. **BUSINESS IMPACT over vuln class** — severity depends on CONTEXT, not just vuln type
-12. **UNDERSTAND THE TARGET DEEPLY** — before hunting, learn the app like a real user
-13. **DON'T OVER-RELY ON AUTOMATION** — automated scans hit WAFs, trigger rate limits, find the same bugs everyone else finds
-14. **HUNT LESS-SATURATED VULN CLASSES** — expand into: cache poisoning, CI/CD pipeline attacks, race conditions, OAuth/OIDC chains, mobile vulns, business logic
-15. **ONE-HOUR RULE** — stuck on one target for an hour with no progress? SWITCH CONTEXT
-16. **TWO-EYE APPROACH** — combine systematic testing (checklist) with anomaly detection (watch for unexpected behavior)
-17. **T-SHAPED KNOWLEDGE** — go DEEP in one area and BROAD across everything else
-18. **NO RIGID CHECKLISTS** — if you see a potential exploitable path, probe it NOW. Don't save it for later or skip because it's "not in the checklist"
-19. **POC EVERYTHING** — when something looks interesting, run multiple PoC variations immediately. Confirm or deny, then move on
-20. **CHAIN FREELY** — if bug A has even a slight connection to bug B, try chaining them before reporting separately
-21. **WHEN IN DOUBT, PROBE** — uncertain if a path is exploitable? Run 3 quick PoCs. If none work, move on. If one works, go deep
-22. **DON'T ASK, SHOW** — don't ask if you should test something. Just test it. Show the result
+### The 5 Pillars (maps)
+
+| # | Pillar (map) | It answers | Mandatory state + engine |
+|---|---|---|---|
+| P1 | **Asset Map** — surface inventory + gaps | "What exists, and what's different between assets?" | `maps/asset.md` |
+| P2 | **Trust Map** — who trusts whom | "Where does the system trust something it shouldn't?" | `maps/trust.md` + `tools/trust_map.py` |
+| P3 | **Identity Map** — authorization matrix | "Who is allowed to do this, to whose data?" | `maps/authz.md` + `tools/hunt.py` dual-session diff |
+| P4 | **State Map** — state machine | "Can I force a state the devs didn't anticipate?" | `maps/state.md` + `tools/kill_chain.py` |
+| P5 | **Capability & Authority Map** — economic/authority impact | "What can this capability create/approve/modify/transfer/withdraw/impersonate/authorize?" | `maps/capability.md` + `tools/capability_registry.py` + `tools/kill_chain.py` |
+
+The six map files — `asset.md`, `trust.md`, `authz.md`, `state.md`, `capability.md`, plus `invariants.md` for contract hunts — are **mandatory state** under `state/sessions/{target}/maps/`. Every agent references them; every finding traces back to one (Rule 6). Primitives (`tools/capability_registry.py`) and chains (`tools/kill_chain.py`) are cross-cutting — they feed every pillar.
+
+> **Smart contracts:** `--solidity` / `--move` / `--solana` hunts are **invariant-centered**, not endpoint-centered — map the protocol, write `invariants.md` (solvency/supply/permission/price), and run the economic loop (`MAP → INVARIANT → … → CALCULATE VALUE AT RISK`) with the 8-dimension Web3 intersection (`IDENTITY × ASSET × STATE × PRICE × AUTHORITY × TRUST BOUNDARY × CALL GRAPH × TIME`). Full track: `references/methodology.md` — Smart-Contract Track.
+
+### The 6 Rules (non-negotiable)
+
+1. **No map → no hunt.** Build all 5 maps before probing any endpoint. An endpoint not in a map is not yet huntable — map it first, then probe. The maps ARE the hunt.
+2. **Every hypothesis is a map mutation.** Express every lead as a node/edge/state/capability in one of the 5 maps. If you can't express it, you don't understand it. The engine is the source of truth, not instinct.
+3. **Hunt intersections, not endpoints.** The unit of hunting is `identity × object × state × boundary × interface` — not `GET /api/user/123`.
+4. **Differential over absolute.** Change exactly one variable (`user_id`, `organization_id`, `role`, API version, HTTP method, content type, token, state, amount, recipient); observe the delta. Same functionality on two interfaces (v1/v2/GraphQL/mobile/web) must be compared.
+5. **Automate discovery, manually reason impact.** Tools find mutations; the AI finds the assumption. Report gates apply at report time only.
+6. **Every finding has a map path.** A finding must trace back to a specific map location: `Finding → P3 → authz.md → user_a × withdrawal_b`, `Finding → P4 → state.md → approved → cancelled`, `Finding → P2 → trust.md → client → backend`, `Finding → P5 → capability.md → transfer → authority boundary`. If an agent can't name the map, node, edge, state transition, or capability involved, the finding is not mature enough to report.
+
+**Hunt loop:** BUILD MAPS → IDENTIFY GAPS → SELECT INTERSECTION → FORM HYPOTHESIS → MUTATE ONE VARIABLE → OBSERVE DELTA → REFUTE OR ESCALATE → CHAIN CAPABILITIES → VALIDATE IMPACT → REPORT (full detail in `references/methodology.md`).
+
+### Operating constraints (still binding)
+
+- **One bug class at a time** — go deep on an intersection, don't spray.
+- **5-MINUTE RULE** — a surface shows nothing after 5 min probing (all 401/403/404)? Switch surfaces (recovery flows, integrations, siblings), not just targets.
+- **ONE-HOUR RULE** — stuck on one target for an hour with no progress? Switch context.
+- **TWO-EYE APPROACH** — combine systematic checklist testing with anomaly detection.
+
+> The rest of the old rule list (payload-first, chain freely, no ceilings, probe-in-doubt) is wild-mode mindset — see `references/wild-mode.md`. Report-time gates (no theoretical bugs, kill weak findings, verify data not public, cred leaks need proof) live in "THE ONLY QUESTION THAT MATTERS" + `references/supervisor.md`.
 
 ---
 
@@ -224,24 +235,11 @@ g. **If `--solidity` or `--full` mode:** check if `bug-bounty-intelligence` MCP 
 
 Print discovered file list and mode(s) selected. If MCP is available, print acceptance-rate summary for detected protocol type. If knowledge.md found disclosed reports, print key patterns extracted.
 
-### ⚡ CONTEXT BUDGET — Read This First
+### Turn 1.5 — Passive Intelligence (SIS-MD)
 
-The skill + references total ~8,400 lines. Loading everything into every agent kills signal. **Follow these rules or findings will be noise:**
+Run for every target. (Pure contract audits have no web surface to fingerprint, but run the applicable checks regardless.)
 
-| Rule | Threshold |
-|------|-----------|
-| Max agents per turn | 8 (not 16 — pick the best for the mode) |
-| Max reference files in agent bundle | 3 (agent def + shared-rules + ONE attack-vector) |
-| Max source.md size | 3,000 lines (truncate with `### TRUNCATED` marker if bigger) |
-| Skip SIS-MD Turn 1.5 | If mode is `--solidity`, `--move`, `--solana` only (no web surface) |
-| Skip isolation check | If < 3 agents spawned or < 10 total findings |
-| Al-Mizaan deep validation | Only load `references/al-mizaan-gates.md` when a finding is borderline (passed 7QG but feels uncertain) |
-
-### Turn 1.5 — Passive Intelligence (SIS-MD) ⚡ SKIP for pure contract audits
-
-**Only run when `--web`, `--cicd`, `--full`, or URL target is detected.** Skip entirely for `--solidity`, `--move`, `--solana` (no web attack surface to fingerprint).
-
-When active, run these checks inline (do NOT load the full `references/sis-intelligence.md` file — use this summary):
+Run these checks, then load the full `references/sis-intelligence.md`:
 
 1. **Secrets scan** — grep code/configs/JS for `AKIA`, `ghp_`, `sk_live_`, `-----BEGIN PRIVATE KEY-----`, `xoxb-`, `password=`, `api_key=`. **Masking rule (mandatory):** Never reprint a live-looking secret in full. Show first 4 + last 4 chars, mask middle with `*`. The report itself must not become a leak vector.
 2. **Tech fingerprint** — check response headers for `Server`, `X-Powered-By`, `cf-ray`, `x-amz-request-id`. Apply **confidence tiers:** High = explicit version string in generator tag or manifest; Medium = inferred from structural/path patterns; Low = weak circumstantial signal. Note outdated versions as "N major releases behind current" **without fabricating CVE IDs** — direct users to NVD or vendor advisories instead.
@@ -249,46 +247,50 @@ When active, run these checks inline (do NOT load the full `references/sis-intel
 
 **Boundary (non-negotiable):** Passive only. No active probes. No secret validation. Redact all live secrets in output. No speculative CVEs. Severity is evidence-based.
 
-Full methodology available in `references/sis-intelligence.md` — load only when user asks for detailed passive analysis.
+Full methodology: `references/sis-intelligence.md` (load it).
 
-### Turn 2 — Prepare ⚡ Mode-Gated Loading
+### Turn 1.75 — Build the 5 Maps (No Map → No Hunt)
 
-**Only load files relevant to the detected mode.** Never load all references at once.
+**Before spawning any agent, build all 5 maps** (Rule 1). These are **mandatory state**, not notes. Agents hunt *through* the maps, not in the dark. Full schemas + the 10-step loop: `references/methodology.md`.
 
-**Always loaded (all modes):** `{resolved_path}/judging.md`, `{resolved_path}/supervisor.md`, `{resolved_path}/wild-mode.md`
+```bash
+mkdir -p state/sessions/T/maps
+```
 
-**Mode-gated (load only what matches):**
+1. **P1 Asset Map** — from recon (Turn 1 + `recon/T/`), write `state/sessions/T/maps/asset.md`: every domain/subdomain/API(+versions)/mobile/web/GraphQL/WebSocket/cloud/GitHub/integration/SSO/admin/smart-contract, with technology, functionality, auth, versions, and **gap signals** (where two assets differ).
+2. **P2 Trust Map** — write `state/sessions/T/maps/trust.md` (who trusts whom + trust_type + boundary_crossed), backed by `python3 tools/trust_map.py --target T --init` and `--find-crossings`.
+3. **P3 Identity Map** — write `state/sessions/T/maps/authz.md`: action × actor matrix (anonymous/user_a/user_b/org_member_a/org_admin_b/admin/service), cells `allowed`/`denied`/`untested`.
+4. **P4 State Map** — write `state/sessions/T/maps/state.md`: object → states → allowed transitions + illegal transitions (skip/reverse/double) + race points.
+5. **P5 Capability & Authority Map** — write `state/sessions/T/maps/capability.md`: each capability + impact verb (create/approve/modify/transfer/withdraw/impersonate/authorize) + the boundary it crosses.
+6. **`invariants.md` (contract hunts only)** — for `--solidity` / `--move` / `--solana`, write `state/sessions/T/maps/invariants.md`: one row per solvency/supply/permission/price invariant (`totalAssets() == Σ(getRate()·balance)`, `Σ userShares == totalSupply`, mint == burn, price not manipulable in one block). This is the entry point — P1–P5 feed it. Full schema + the economic loop: `references/methodology.md` — Smart-Contract Track.
 
-| Mode | Load These Files |
-|------|-----------------|
-| `--solidity` / `--move` / `--solana` | `references/attack-vectors/smart-contract-vectors.md`, `references/cvss-guide.md` |
-| `--solidity` + MCP available | Additionally call `list_vulnerability_patterns` for acceptance rates (free) |
-| `--web` / `--full` | `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/attack-vectors/spel-injection-vectors.md`, `references/report-formatting.md` |
-| `--web` / `--full` + advanced | Additionally load `references/attack-vectors/zerodays.md` (unconventional attack patterns, protocol confusion, timing side-channels) |
-| `--cicd` | `references/attack-vectors/web-api-vectors.md` (CI/CD sections) |
-| `--report` | `references/report-formatting.md`, `references/cvss-guide.md` |
-| `--triage` | `references/supervisor.md` only |
-| `--learn` flag active | Additionally load `references/knowledge.md` |
-| Local execution enabled | Additionally load `references/setup.md`, `references/local-tooling.md` |
+**Every agent's Turn 3 prompt must reference the maps** — which asset it owns, which boundary it crosses, which authz cell it tests, which state transition it attacks, which capability it chains, which invariant it attacks (contracts). **Every finding must carry a map path** (Rule 6): `Finding → P# → map.md → location`. No map → no hunt.
 
-**Do NOT load these unless explicitly needed:**
-- `references/al-mizaan-gates.md` — only when a finding passes 7QG but needs deep validation
-- `references/sis-intelligence.md` — only when user asks for detailed passive analysis
-- `references/bug-bounty-intelligence-mcp.md` — only when MCP is configured and doing contract audits
-- `references/isolation.md` — only when isolation violations are detected
-- `references/cwe-knowledge-base.md` — loaded by domain section during Turn 2.5 per spawned agent; never load the full file at once (1,100+ lines)
+### Turn 2 — Prepare (Load Everything)
+
+**Load ALL references.** Nothing is mode-gated, truncated, or skipped for token reasons.
+
+Core references (all modes): `{resolved_path}/methodology.md`, `{resolved_path}/judging.md`, `{resolved_path}/supervisor.md`, `{resolved_path}/wild-mode.md`, `{resolved_path}/al-mizaan-gates.md`, `{resolved_path}/sis-intelligence.md`, `{resolved_path}/isolation.md`, `{resolved_path}/knowledge.md`, `{resolved_path}/report-formatting.md`, `{resolved_path}/cvss-guide.md`, `{resolved_path}/setup.md`, `{resolved_path}/local-tooling.md`, `{resolved_path}/bug-bounty-intelligence-mcp.md`
+
+Attack vectors (all): `references/attack-vectors/smart-contract-vectors.md`, `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/attack-vectors/spel-injection-vectors.md`, `references/attack-vectors/zerodays.md`
+
+Hacking agents (all): `references/hacking-agents/shared-rules.md` + every `references/hacking-agents/*.md`
+
+CWE knowledge base: `references/cwe-knowledge-base.md` (full file — 1,047 CWEs)
+
+MCP (if configured): call `list_vulnerability_patterns` for acceptance rates (free).
 
 Then build all bundles in a single Bash `cat` command:
 
-1. **`{bundle_dir}/source.md`** — all in-scope source files, each with `### path` header and fenced code block. **Cap at 3,000 lines.** If bigger, include first 1,000 + last 1,000 + 1,000 from middle, with `### TRUNCATED` markers.
+1. **`{bundle_dir}/source.md`** — ALL in-scope source files, each with `### path` header and fenced code block. No cap, no truncation — include the full source.
 
-2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ONE attack-vector file + CWE domain section (see Turn 2.5). **Max 4 reference files per bundle.** Skip agent bundles whose domain doesn't apply. **Max 10 agents spawned per turn.** **The CORE SPAWN SET bundles are NEVER skipped — always in the spawn queue: `rogue-agent.md`, `counter-intelligence-agent.md`, `credential-leak-agent.md`, `access-control-agent.md`, `business-logic-agent.md`, `race-condition-agent.md` (DEFAULT CORE MODE).** Domain agents (web-api, smart-contract, recon, etc.) join the core depending on target type.
+2. **Agent bundles** = `source.md` + agent-specific file + `shared-rules.md` + ALL attack-vector files + full CWE knowledge base (see Turn 2.5). No cap on reference files or agent count. **The CORE SPAWN SET bundles are NEVER skipped — always in the spawn queue: `rogue-agent.md`, `counter-intelligence-agent.md`, `credential-leak-agent.md`, `access-control-agent.md`, `business-logic-agent.md`, `race-condition-agent.md` (DEFAULT CORE MODE).** Domain agents (web-api, smart-contract, recon, etc.) join the core depending on target type.
 
 ### Turn 2.5 — Load CWE Detection Patterns 🔍
 
 **For every agent being spawned, load its relevant CWE domain section from `references/cwe-knowledge-base.md`.** This gives each agent concrete detection payloads, grep patterns, and fuzzing strategies for its bug class assignments.
 
-Load only the section matching the agent's domain — never the full file. **CORE SPAWN SET sections are ALWAYS loaded in every hunt** (they're always spawned): Section 4-5 (Auth, Authorization) for access-control, Section 7 (Business Logic) for business-logic, Section 8 (Race Conditions) for race-condition, Section 9 (Info Leakage) for credential-leak, Section 16 (Smuggling & Cache) for counter-intelligence, and Sections 11-12 + 14 (Infra, CI/CD & Supply Chain, Cloud) for rogue-agent.
+Load the full `references/cwe-knowledge-base.md` for every agent — all 1,047 CWEs, no section filtering.
 
 | Agent | CWE Section to Load | Lines | Key Detection Content |
 |-------|-------------------|-------|----------------------|
@@ -306,15 +308,6 @@ Load only the section matching the agent's domain — never the full file. **COR
 | `mobile-client-agent` | Section 13 (Mobile) | ~50 | APK analysis, deep links, WebView, biometric bypass |
 | `credential-leak-agent` | Section 9 (Info Leakage) | ~60 | grep patterns for keys/secrets, .git exposure |
 | `waf-bypass-agent` | Sections 1-3 (Injection, XSS, SSRF) | ~60 | Encoding tricks, parser differentials |
-
-**How to load efficiently:**
-```bash
-# Extract only the relevant section for the agent (example: web-api-agent sections 1-3 + 9)
-sed -n '/^## CWE-1: Web\/API Injection/,/^## CWE-4: Authentication/p' references/cwe-knowledge-base.md
-sed -n '/^## CWE-2: Cross-Site Scripting/,/^## CWE-3: SSRF/p' references/cwe-knowledge-base.md
-sed -n '/^## CWE-3: SSRF/,/^## CWE-4: Authentication/p' references/cwe-knowledge-base.md
-sed -n '/^## CWE-9: Information Leakage/,/^## CWE-10: Smart Contracts/p' references/cwe-knowledge-base.md
-```
 
 **CWE-to-bug_class mapping:** Each agent's `shared-rules.md` now includes a complete CWE mapping table. Every FINDING must include a `cwe:` field with the primary CWE ID from that mapping. This ensures every finding is auto-tagged with the correct CWE without agents needing to memorize CWE IDs.
 
@@ -351,7 +344,7 @@ In one message, spawn all applicable agents as parallel foreground Agent calls.
 
 **DEFAULT CORE MODE — the orchestrator runs a permanent core of always-on attackers:**
 
-The six CORE agents below are spawned in EVERY hunt, every turn — never conditional, never "last resort." Domain agents are added on top based on target type (web-api-agent for web/API, smart-contract-agent for contracts, recon-agent for external targets, etc.). **6 core + up to 4 domain agents = 10 max per turn.**
+The six CORE agents below are spawned in EVERY hunt, every turn — never conditional, never "last resort." Domain agents are added on top based on target type (web-api-agent for web/API, smart-contract-agent for contracts, recon-agent for external targets, etc.). No cap on the number of agents — spawn all applicable agents.
 
 - **`rogue-agent`** — unconventional surfaces (dev workflow, error weaponization, self-referential attacks, timing side-channels, supply chain poisoning, logic bombs, protocol confusion, env recon — see `references/hacking-agents/rogue-agent.md`) run in parallel while standard agents work the front door.
 - **`counter-intelligence-agent`** — maps the target's defenses (honeypots, WAF traps, active defenders, canaries) and broadcasts ALERTs so no other agent wastes probes on trapped ground. Every "no" the target gives it is logged as intel, not failure.
@@ -371,7 +364,7 @@ Single-pass: deduplicate → gate-evaluate → report. Use supervisor.md triage 
 **After agents return findings, run the tool pipeline:**
 
 1. **Collect** all agent findings into a structured list
-2. **Run agent isolation check** — **First, load `references/isolation.md` domain boundaries and violation table**. Then run `python3 tools/agent_isolation.py state/sessions/T/findings_structured.json --target T` — **skip if < 3 agents spawned or < 10 total findings.** When skipped, agents self-certify via their output format. If violations found, cross-reference against isolation.md violation→response table.
+2. **Run agent isolation check** — **First, load `references/isolation.md` domain boundaries and violation table**. Then run `python3 tools/agent_isolation.py state/sessions/T/findings_structured.json --target T`. If violations found, cross-reference against isolation.md violation→response table.
 3. **Run hunt.py** with `--active --json` to get structured findings with severity/class/chain_potential
 4. **Run KillChainBuilder** — feed findings into `build_all_chains()` to discover A→B→C chains
 5. **Run AdversaryEmulation** — classify each finding, compute MITRE/OWASP coverage, generate heatmap
@@ -1607,6 +1600,8 @@ npm publish  # with malicious postinstall script
 # PHASE 4: VALIDATE
 
 ## SMART CONTRACT REASONING — 5-LAYER PRIORITY (applies to ALL contract hunting, before any gate)
+
+**First: map the protocol and write `invariants.md` (Rule 1).** Before any layer below, list the protocol's solvency/supply/permission/price invariants and run the economic loop — `MAP → INVARIANT → IDENTIFY ASSUMPTION → FIND CONTROLLED VARIABLE → MUTATE → OBSERVE → CHECK INVARIANT → CHAIN → CALCULATE VALUE AT RISK` (full track: `references/methodology.md` — Smart-Contract Track). Every finding names the invariant it breaks and the value it puts at risk.
 
 The criticals on audited code are rarely in the code. Rank effort by where bugs actually live:
 

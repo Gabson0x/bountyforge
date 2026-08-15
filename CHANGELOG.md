@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.3.0 (2026-08-15)
+
+### Added
+- **Methodology spine — 5 Pillars, 6 Rules, 5 Questions** — new always-loaded `references/methodology.md` restructures the hunt from flat endpoint-spraying into an architecture-first loop:
+  - **5 Pillars (mandatory maps):** P1 Asset Map (`asset.md`), P2 Trust Map (`trust.md` + `trust_map.py`), P3 Identity Map (`authz.md` + `hunt.py` dual-session diff), P4 State Map (`state.md` + `kill_chain.py`), P5 Capability & Authority Map (`capability.md` + `capability_registry.py` + `program_fit.py` + `kill_chain.py`). All six `.md` files (five pillar maps + `invariants.md` for contract hunts) are mandatory state under `state/sessions/{target}/maps/`.
+  - **6 Rules:** No map → no hunt; every hypothesis is a map mutation; hunt intersections not endpoints; differential over absolute; automate discovery + manually reason impact; **every finding has a map path** (`Finding → P# → map.md → location`).
+  - **10-step hunt loop:** BUILD MAPS → IDENTIFY GAPS → SELECT INTERSECTION → FORM HYPOTHESIS → MUTATE ONE VARIABLE → OBSERVE DELTA → REFUTE OR ESCALATE → CHAIN CAPABILITIES → VALIDATE IMPACT → REPORT.
+  - **Intersection format for findings:** every finding must be written as `identity × object × state × boundary × interface`, not "an interesting endpoint" — with a concrete `Identity / Object / State / Boundary / Interface` block plus a one-line `Hypothesis`.
+  - **P5 tightened** to own capability + economic/authority impact: "What can this capability create, approve, modify, transfer, withdraw, impersonate, or authorize?" — a capability is only interesting when it crosses a meaningful boundary.
+- **Smart-Contract Track — protocol & economic-state aware** — new `## Smart-Contract Track` in `references/methodology.md` makes contract hunts invariant-centered: a mandatory cross-cutting `maps/invariants.md` artifact (solvency/supply/permission/price invariants), the economic hunt loop (`MAP → INVARIANT → IDENTIFY ASSUMPTION → FIND CONTROLLED VARIABLE → MUTATE → OBSERVE → CHECK INVARIANT → CHAIN → CALCULATE VALUE AT RISK`), the 8-dimensional Web3 intersection formula (`IDENTITY × ASSET × STATE × PRICE × AUTHORITY × TRUST BOUNDARY × CALL GRAPH × TIME`), and the 12-point protocol-mapping model (external contracts as trust boundaries, economic state machines + value-flow maps, flash-loan-as-capability, privilege graphs, accounting-before-implementation, auto first-depositor hypothesis). `smart-contract-agent.md` now hunts invariants first; FINDINGs carry `invariant` + `value_at_risk`.
+
+### Changed
+- `SKILL.md`: replaced the flat 23-item CRITICAL RULES list with a compact `PILLARS & RULES` section (5 pillars + 6 rules + operating constraints). `methodology.md` added to the always-loaded reference set. New `Turn 1.75 — Build the 5 Maps` orchestration step before agent spawn.
+- **Removed all token-saving constraints — "go all out":** deleted the CONTEXT BUDGET rule and its threshold table, mode-gated loading, the "Do NOT load these" list, source.md 3,000-line truncation, agent/reference caps (max 4 ref files, max 10 agents), CWE section-loading (now the full 1,047-CWE file), SIS-MD skip-for-contract-audit gates, and isolation-check skip thresholds. Turn 2 now loads everything.
+- `references/hacking-agents/shared-rules.md`: FINDING output now carries `map_path` + `intersection` (Identity/Object/State/Boundary/Interface) + `hypothesis`; LEAD output carries `map_path`.
+
+---
+
 ## v3.2.3 (2026-08-14)
 
 ### Added
