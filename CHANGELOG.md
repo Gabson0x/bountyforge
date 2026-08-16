@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.4.0 (2026-08-16)
+
+### Added
+- **Observation / Oracle Validation layer** (`tools/observation.py`) — a raw HTTP response can no longer automatically refute an experiment. Every active-injection probe is now validated against a control/baseline across status, body, headers, timing, redirects, and size before any refutation:
+  - **Deterministic rules own the final observation state** (`SIGNAL` / `REFUTED` / `UNKNOWN` / `ERROR`). The LLM may flag ambiguity, rank it, and request follow-ups (`attach_llm_note`), but its commentary is advisory-only and can never flip the verdict. All rule evaluations are preserved in an append-only reasoning chain, and the original raw observation is preserved verbatim in provenance with a tamper-evident record hash.
+  - **UNKNOWN beats REFUTED on ambiguity:** the timing rule fires before the control-match rule, so a 404 that matches the baseline in status/body but takes seconds vs milliseconds (time-based blind injection) is classified UNKNOWN and generates a deterministic follow-up experiment — never silently refuted. Status divergence to 404/403 from a healthy baseline (different execution path) and body divergence are likewise UNKNOWN, never refuted.
+  - **Follow-up experiment generation:** UNKNOWN observations carry a machine-checkable `FollowUpExperiment` spec (TIMING_CONTROL, STATUS_PROBE, BODY_DIFF_PROBE, REDIRECT_PROBE, GENERIC_RETRY) with request specs and acceptance criteria. `hunt.py` executes the follow-up deterministically and resolves the state.
+  - Persistence: append-only `state/observations/{target}.jsonl` with `ObservationRecord.from_dict/to_dict` round-trip and hash verification.
+- `tools/hunt.py` integration: `curl_fetch_observation()` captures full observables (status, headers, body, timing, size, redirect target); `run_active_injection()` routes every probe through the validator; ambiguous observations surface as `[unknown]` leads in the structured JSON (`observations` section, schema 2.3.0) and are never promoted to findings; `state/observations/` keeps every REFUTED/UNKNOWN record with provenance.
+- **Regression test suite** `tests/test_observation.py` (27 tests, stdlib `unittest`, `python3 -m unittest discover -s tests`), including the headline **404-with-significantly-different-timing** case (must be UNKNOWN with a TIMING_CONTROL follow-up, never REFUTED), the control-URL binding (follow-up control runs must target the payload-free baseline), LLM-cannot-override-state, provenance preservation, hash tamper-evidence, persistence, and probe URL encoding.
+
+### Fixed
+- `tools/hunt.py` CLI entry point restored — the `if __name__ == "__main__": main()` block was missing, so `python3 tools/hunt.py ...` silently exited 0.
+- Probe URLs with characters curl rejects (spaces in `SLEEP(0)`, `OR 1=1`, braces in SSTI, angle brackets in XSS) are now percent-encoded (`_encode_probe_url`) — these experiments previously never executed (curl rc=3 → silently skipped).
+
+---
+
 ## v3.3.0 (2026-08-15)
 
 ### Added

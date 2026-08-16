@@ -44,6 +44,15 @@ try:
 except ImportError:
     HAS_OPSEC = False
 
+try:
+    from tools.observation import (
+        OracleValidator, ObservationState, FollowUpKind,
+        HttpObservation, ObservationRecord, save_observation,
+    )
+    HAS_OBSERVATION = True
+except ImportError:
+    HAS_OBSERVATION = False
+
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
@@ -76,6 +85,8 @@ class HuntResult:
     body_hash_b: str = ""
     idor_signal: bool = False
     notes: str = ""
+    observation_state: str = ""  # signal | unknown | refuted | error (oracle-validated)
+    observation_id: str = ""     # provenance link into state/observations/
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +158,162 @@ def curl_fetch(method: str, url: str, session: HuntSession,
         return (0, output)
     except Exception as e:
         return (-1, str(e))
+
+
+_BF_TRAILER = "|BF|%{http_code}|%{time_total}|%{size_download}"
+
+
+def curl_fetch_observation(method: str, url: str, session: HuntSession,
+                           extra_headers: Dict = None, body: str = None,
+                           rotator=None) -> HttpObservation:
+    """Execute a request and capture a full HttpObservation.
+
+    Captures status, headers, body, timing, size, and the redirect target —
+    every observable the Oracle Validation layer compares against the control.
+    """
+    if not HAS_OBSERVATION:
+        return HttpObservation(status=0, error="observation layer unavailable")
+    cmd = ["curl", "-sk", "-i", "-X", method, url,
+           "--max-time", "30", "-w", _BF_TRAILER]
+
+    merged = dict(session.headers)
+    if extra_headers:
+        merged.update(extra_headers)
+
+    if rotator and HAS_OPSEC:
+        merged["User-Agent"] = rotator.random_ua()
+
+    for k, v in merged.items():
+        cmd.extend(["-H", f"{k}: {v}"])
+
+    if session.cookies:
+        cookie_str = "; ".join(f"{k}={v}" for k, v in session.cookies.items())
+        cmd.extend(["-H", f"Cookie: {cookie_str}"])
+
+    if body:
+        cmd.extend(["-d", body])
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+        output = result.stdout
+        marker = "|BF|"
+        if marker not in output:
+            return HttpObservation(status=0,
+                                   error="curl output missing trailer",
+                                   body=output[:500])
+        raw, meta = output.rsplit(marker, 1)
+        parts = meta.split("|")
+        try:
+            status = int(parts[0])
+            timing = float(parts[1])
+            size = int(parts[2])
+        except (ValueError, IndexError):
+            return HttpObservation(status=0,
+                                   error=f"malformed curl trailer: {meta[:80]}")
+        header_blob, _, body_text = raw.partition("\r\n\r\n")
+        if not header_blob:
+            header_blob, _, body_text = raw.partition("\n\n")
+        headers = {}
+        redirect_chain = []
+        for line in header_blob.splitlines():
+            if ":" not in line:
+                continue
+            k, _, v = line.partition(":")
+            k = k.strip().lower()
+            if k == "location":
+                redirect_chain.append(v.strip())
+            if k not in headers:
+                headers[k] = v.strip()
+        return HttpObservation(
+            status=status, body=body_text, headers=headers,
+            timing_seconds=timing, size_bytes=size,
+            redirect_chain=redirect_chain)
+    except Exception as e:
+        return HttpObservation(status=-1, error=str(e))
+
+
+def _median(values: List[float]) -> float:
+    if not values:
+        return 0.0
+    s = sorted(values)
+    mid = len(s) // 2
+    return s[mid] if len(s) % 2 else (s[mid - 1] + s[mid]) / 2.0
+
+
+def run_follow_up(record: ObservationRecord, session: HuntSession,
+                  rotator=None) -> ObservationRecord:
+    """Execute a follow-up experiment deterministically.
+
+    Re-observes the candidate and control, applies the same oracle rules, and
+    records the resolved state. Never generates further follow-ups (one level
+    deep only).
+    """
+    if not record.follow_up or not HAS_OBSERVATION:
+        return record
+    fu = record.follow_up
+    url, control_url, method = record.url, record.control_url, record.method
+
+    def _obs(target_url=None, body=None):
+        return curl_fetch_observation(method, target_url or url, session,
+                                      body=body, rotator=rotator)
+
+    def _control():
+        return _obs(control_url)
+
+    if fu.kind == FollowUpKind.TIMING_CONTROL:
+        control_times = [o.timing_seconds for _ in range(3)
+                         if (o := _control()).timing_seconds > 0]
+        cand_times = [o.timing_seconds for _ in range(3)
+                      if (o := _obs()).timing_seconds > 0]
+        med_c = _median(control_times)
+        med_k = _median(cand_times)
+        if control_times and cand_times:
+            if med_k >= med_c + 0.5 and sum(
+                    1 for t in cand_times if t >= med_c + 0.5) >= 2:
+                fu.result_state = ObservationState.SIGNAL.value
+            elif all(t <= med_c + 0.3 for t in cand_times):
+                fu.result_state = ObservationState.REFUTED.value
+            else:
+                fu.result_state = ObservationState.UNKNOWN.value
+        else:
+            fu.result_state = ObservationState.UNKNOWN.value
+
+    elif fu.kind == FollowUpKind.STATUS_PROBE:
+        fresh_control = _control()
+        fresh_candidate = _obs()
+        if fresh_candidate.status == fresh_control.status:
+            fu.result_state = ObservationState.REFUTED.value  # endpoint behavior
+        else:
+            fu.result_state = ObservationState.UNKNOWN.value  # payload-driven
+
+    elif fu.kind == FollowUpKind.BODY_DIFF_PROBE:
+        control = _control()
+        runs = [_obs() for _ in range(3)]
+        diverged = sum(1 for o in runs if o.body != control.body)
+        fu.result_state = (ObservationState.UNKNOWN.value
+                           if diverged >= 2 else ObservationState.REFUTED.value)
+
+    elif fu.kind == FollowUpKind.REDIRECT_PROBE:
+        control = _control()
+        cand = _obs()
+        if (cand.redirect_chain != control.redirect_chain
+                and cand.redirect_chain):
+            fu.result_state = ObservationState.SIGNAL.value
+        else:
+            fu.result_state = ObservationState.REFUTED.value
+
+    else:  # GENERIC_RETRY
+        control = _control()
+        runs = [_obs() for _ in range(3)]
+        matched = sum(1 for o in runs
+                      if o.status == control.status and o.body == control.body)
+        fu.result_state = (ObservationState.REFUTED.value
+                           if matched == 3 else ObservationState.UNKNOWN.value)
+
+    fu.status = "executed"
+    record.updated_at = datetime.now(timezone.utc).isoformat()
+    record.record_hash = record.compute_hash()
+    return record
 
 
 # ---------------------------------------------------------------------------
@@ -469,9 +636,29 @@ def classify_response(body: str, probe_label: str, bug_class: str,
     return None
 
 
+def _domain(target_host: str) -> str:
+    """Extract a stable target name from a host URL for observation records."""
+    stripped = target_host.replace("https://", "").replace("http://", "").split("/")[0]
+    return stripped.split(":")[0]
+
+
+def _encode_probe_url(url: str) -> str:
+    """Percent-encode characters curl's URL parser rejects (spaces, <>, {}, |,
+    quotes, etc.) while preserving URL structure. Servers URL-decode query
+    parameters back, so payload semantics are unchanged."""
+    return urllib.parse.quote(url, safe=":/?=&%+-._~'()!*,;@[]")
+
+
 def run_active_injection(target_host: str, session: HuntSession,
                          rotator=None, max_urls: int = 20) -> List[HuntResult]:
-    """Run active injection payloads against discovered URLs."""
+    """Run active injection payloads against discovered URLs.
+
+    Every probe is treated as an experiment: the candidate response is
+    validated against a control by the Oracle Validation layer before it may
+    refute, confirm, or be marked ambiguous. Ambiguous observations are not
+    silently dropped — they produce a deterministic follow-up experiment, and
+    unresolved ones are surfaced as `[unknown]` leads with full provenance.
+    """
     results = []
     base = target_host.rstrip("/")
     urls = load_recon_urls(base.replace("https://", "").replace("http://", "").split("/")[0])
@@ -494,29 +681,75 @@ def run_active_injection(target_host: str, session: HuntSession,
             probe_url = probe_tpl.replace("{url}", url.split("?")[0] if "?" in probe_tpl else url)
             if "?" not in probe_url:
                 probe_url = probe_url + "?id=test"
+            probe_url = _encode_probe_url(probe_url)
 
-            status, body = curl_fetch(method, probe_url, session, rotator=rotator)
-            if status <= 0 or not body:
+            if not HAS_OBSERVATION:
                 continue
 
-            # Also fetch baseline (no payload)
+            # Control first (baseline, no payload), then the experiment.
             base_url = url.split("?")[0] if "?" in url else url
-            base_status, baseline = curl_fetch("GET", base_url, session, rotator=rotator)
-            if base_status <= 0:
-                base_status = 200  # Assume OK if baseline fetch failed
+            control = curl_fetch_observation("GET", base_url, session, rotator=rotator)
+            candidate = curl_fetch_observation(method, probe_url, session,
+                                               rotator=rotator)
+            if candidate.status <= 0 or control.status <= 0:
+                continue  # transport errors: nothing to conclude
 
-            # Skip if response is a WAF block page
-            if len(body) < 50 or "access denied" in body.lower():
-                continue
+            record = OracleValidator().validate(
+                candidate, control,
+                url=probe_url, control_url=base_url, method=method,
+                bug_class=bug_class, probe_label=label,
+                target=_domain(target_host))
 
-            # Check for significant difference from baseline → signal
-            result = classify_response(body, label, bug_class,
-                                       status=status, baseline_status=base_status)
-            if result:
+            if record.state == ObservationState.SIGNAL:
+                result = classify_response(candidate.body, label, bug_class,
+                                           status=candidate.status,
+                                           baseline_status=control.status)
+                if result is None:
+                    result = HuntResult(
+                        endpoint=probe_url, method=method,
+                        status_a=candidate.status,
+                        notes=(f"[high] {bug_class}: oracle-validated "
+                               f"status delta {record.metrics.status_delta}"))
                 result.endpoint = probe_url
                 result.method = method
+                result.observation_state = "signal"
+                result.observation_id = record.observation_id
                 results.append(result)
+                if HAS_STATE:
+                    save_observation(record.target, record)
                 break  # One finding per URL, move to next
+
+            elif record.state == ObservationState.UNKNOWN:
+                record = run_follow_up(record, session, rotator=rotator)
+                if HAS_STATE:
+                    save_observation(record.target, record)
+                resolved = record.follow_up.result_state if record.follow_up else ""
+                if resolved == ObservationState.SIGNAL.value:
+                    result = HuntResult(
+                        endpoint=probe_url, method=method,
+                        status_a=candidate.status,
+                        notes=(f"[high] {bug_class}: follow-up confirmed "
+                               f"{record.follow_up.kind.value} divergence "
+                               f"({record.decisive_rule})"),
+                        observation_state="signal",
+                        observation_id=record.observation_id)
+                    results.append(result)
+                    break
+                # Ambiguous even after a deterministic follow-up — surface as a
+                # trackable lead with provenance, never silently refute.
+                fu_kind = record.follow_up.kind.value if record.follow_up else "none"
+                results.append(HuntResult(
+                    endpoint=probe_url, method=method,
+                    status_a=candidate.status,
+                    notes=(f"[info] observation-unknown: {label} — "
+                           f"{record.decisive_rule} (follow-up {fu_kind}, "
+                           f"resolved {resolved or 'pending'})"),
+                    observation_state="unknown",
+                    observation_id=record.observation_id))
+
+            else:  # REFUTED / ERROR — preserve the observation, conclude nothing
+                if HAS_STATE:
+                    save_observation(record.target, record)
 
     return results
 
@@ -655,9 +888,14 @@ def main():
             seen.add(key)
             unique.append(r)
 
-    print(f"\n[*] Total findings: {len(unique)}")
+    print(f"\n[*] Total results: {len(unique)}")
     for r in unique:
-        tag = "IDOR" if r.idor_signal else "INFO"
+        if r.observation_state == "unknown":
+            tag = "UNKNOWN"
+        elif r.idor_signal:
+            tag = "IDOR"
+        else:
+            tag = "INFO"
         print(f"  [{tag}] {r.method} {r.endpoint} — {r.notes}")
 
     # Persist state
@@ -666,6 +904,10 @@ def main():
         for r in unique:
             mark_tested(target, r.endpoint, r.method,
                        status=r.status_a, notes=r.notes)
+            # Ambiguous observations are leads, not findings — they must never
+            # be promoted to confirmed findings by the state layer.
+            if r.observation_state == "unknown":
+                continue
             # Parse severity/bug_class from active injection findings
             severity = "info"
             bug_class = "info-disclosure"
@@ -696,7 +938,12 @@ def main():
     else:
         print(f"\n[*] Total findings: {len(unique)}")
         for r in unique:
-            tag = "IDOR" if r.idor_signal else "INFO"
+            if r.observation_state == "unknown":
+                tag = "UNKNOWN"
+            elif r.idor_signal:
+                tag = "IDOR"
+            else:
+                tag = "INFO"
             print(f"  [{tag}] {r.method} {r.endpoint} — {r.notes}")
 
     if args.output:
@@ -705,8 +952,13 @@ def main():
         print(f"[*] Results written to {args.output}")
 
 
-def _format_structured_json(target: str, findings: List[HuntResult], args) -> Dict:
-    """Format findings as structured JSON with schema for interop."""
+def _format_structured_json(target: str, results: List[HuntResult], args) -> Dict:
+    """Format results as structured JSON with schema for interop.
+
+    Signals become findings; oracle-validated UNKNOWN observations are kept
+    in a separate `observations` section (leads with provenance, never
+    promoted to findings).
+    """
     now = datetime.now(timezone.utc).isoformat()
     mode_parts = []
     if hasattr(args, 'active') and args.active:
@@ -715,6 +967,9 @@ def _format_structured_json(target: str, findings: List[HuntResult], args) -> Di
         mode_parts.append("idor")
     if not mode_parts:
         mode_parts.append("passive")
+
+    findings = [r for r in results if r.observation_state != "unknown"]
+    observations = [r for r in results if r.observation_state == "unknown"]
 
     formatted = []
     for r in findings:
@@ -768,14 +1023,27 @@ def _format_structured_json(target: str, findings: List[HuntResult], args) -> Di
         by_severity[f["severity"]] = by_severity.get(f["severity"], 0) + 1
         by_class[f["bug_class"]] = by_class.get(f["bug_class"], 0) + 1
 
+    obs_formatted = []
+    for r in observations:
+        obs_formatted.append({
+            "id": r.observation_id,
+            "endpoint": r.endpoint,
+            "method": r.method,
+            "state": "unknown",
+            "probe": r.notes,
+            "observation_ref": f"state/observations/{_domain(target)}.jsonl",
+        })
+
     return {
         "target": target,
         "scan_ts": now,
-        "version": "2.2.0",
+        "version": "2.3.0",
         "mode": "+".join(mode_parts),
         "findings": formatted,
+        "observations": obs_formatted,
         "stats": {
             "total_findings": len(formatted),
+            "total_observations": len(obs_formatted),
             "by_severity": by_severity,
             "by_class": by_class,
         },
@@ -812,3 +1080,7 @@ def _map_class_to_chains(bug_class: str) -> List[str]:
         "prototype-pollution": ["CHAIN-019"],
     }
     return mapping.get(bug_class, [])
+
+
+if __name__ == "__main__":
+    main()

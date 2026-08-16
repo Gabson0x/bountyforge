@@ -2078,6 +2078,7 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 |------|---------|-------|
 | `tools/trust_map.py` | Target trust relationship graph, boundary crossing detection, chain signaling | Import `TrustMap` class |
 | `tools/refutation.py` | Adversarial finding refutation — spawns a different model to kill findings through 4-gate evaluation | Import `RefutationEngine` class |
+| `tools/observation.py` | Observation/Oracle Validation layer — a raw HTTP response can never silently refute an experiment; candidate vs control/baseline comparison (status, body, headers, timing, redirects, size) with deterministic UNKNOWN classification + follow-up generation, provenance-preserving | Import `OracleValidator` class |
 | `tools/capability_registry.py` | Structured catalog of every discovered primitive, chain compatibility matching, coverage analysis | Import `CapabilityRegistry` class |
 | `tools/program_fit.py` | Program scope/suitability gate — filters noise before report generation | Import `ProgramFitGate` class |
 | `tools/ledger.py` | Evidence consistency verifier — cross-references findings against journal, endpoints, custody | Import `LedgerVerifier` class |
