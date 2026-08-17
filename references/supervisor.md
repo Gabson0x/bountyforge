@@ -10,6 +10,7 @@ The supervisor is the quality gate between raw scanner output and a submitted re
 Raw Finding → Gate 0 (Reality) → Gate 1 (Impact) → Gate 2 (Dedup) → Gate 3 (Quality) → Report
                                 ↓ FAIL            ↓ FAIL          ↓ FAIL
                              KILL / DEMOTE      KILL / DEMOTE   KILL / DEMOTE
+                OPEN LEAD (trigger proven, impact untraced) — payload kept, retested next pass
 ```
 
 ---
@@ -61,6 +62,23 @@ The first blank must be a specific action. The second must be a specific harm.
 - "This could be used in a chain" — build the chain first, then report
 - "This is a security misconfiguration" — describe the actual harm, not the category
 - "This violates best practice" — best practice violations without exploit impact are not bugs
+
+### Trigger vs Impact — the two-halves rule (read before ANY kill)
+
+The Impact Litmus Test answers ONE half of every lead. A kill is legal only
+after BOTH halves are resolved:
+
+- **Q-TRIGGER** — "Can the path fire?" If refuted (unreachable, trusted-actor-only with no bypass) → KILL.
+- **Q-IMPACT** — "If it fires, what does the VICTIM lose?" If untraced → **DEMOTE to OPEN LEAD**, not KILL. Keep the payload; retest next pass.
+
+**Conflation is the failure mode.** Answering "can it fire?" and moving on
+because the impact "seems below the bar" is the mistake this gate exists to
+prevent. And impact is victim-harm, not attacker-profit: "this doesn't make an
+attacker money" refutes nothing — an accounting desync that strands or
+misdirects account value is account-owner loss, a Medium floor on Immunefi on
+its own. Whether it chains into attacker profit is a separate trace, never a
+precondition for keeping the lead alive. Severity estimation never precedes
+the impact trace.
 
 ### Impact Tiers
 

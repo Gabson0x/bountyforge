@@ -1,5 +1,21 @@
 # Changelog
 
+## v3.4.1 (2026-08-17)
+
+### Added
+- **THE TWO-QUESTION RULE — Trigger × Impact** (`SKILL.md`, new section after "THE ONLY QUESTION THAT MATTERS") — fixes the premature-kill failure mode where an agent answers the trigger question ("can the path fire?") and never traces the impact question ("if it fires, what does the victim lose?"):
+  - Every lead carries two INDEPENDENT questions; both get a written trace before any verdict. Answering one and assuming the other is a process error.
+  - **Impact is victim-harm, not attacker-profit.** "This doesn't make an attacker money" is NOT a kill — an accounting desync that strands or misdirects account value (permanently stuck, or recoverable only through a privileged path) is account-owner loss, a **Medium floor on Immunefi in its own right**. Attacker-profit chaining is a separate trace after impact, never a precondition.
+  - **Three verdicts only: FINDING / OPEN LEAD / KILL.** KILL requires BOTH refutations with evidence (path proven unreachable AND harm proven nonexistent). One unproven half = OPEN LEAD — logged with payload and chain partners, retested next pass. "Below the bar" is not a kill; severity estimation never precedes the impact trace.
+  - Kill table annotated: all rows are TRIGGER-refutations only; "trigger proven, impact untraced" row added → OPEN LEAD.
+- `references/wild-mode.md` Rule 8 "TWO QUESTIONS PER LEAD (TRIGGER × IMPACT)" — same doctrine in the always-loaded wild-mode reference.
+- `references/supervisor.md` Gate 1 "Trigger vs Impact — the two-halves rule" — KILL only after both halves resolved; untraced impact demotes to OPEN LEAD, not kill. Pipeline diagram now shows the OPEN LEAD state.
+
+### Fixed
+- No code changes; behavior-only doctrine fix for lead lifecycle management (kill → open lead demotion).
+
+---
+
 ## v3.4.0 (2026-08-16)
 
 ### Added

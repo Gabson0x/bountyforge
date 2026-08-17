@@ -69,20 +69,49 @@ If update is available, print the warning but CONTINUE with the session. Do not 
 > **"Can an attacker do this RIGHT NOW against a real user who has taken NO unusual actions — and does it cause real harm (stolen money, leaked PII, account takeover, code execution)?"**
 >
 > If the answer is NO — **STOP. Do not write. Do not explore further. Move on.**
+>
+> **This question has TWO independent halves. Answer BOTH before any verdict:**
+> **TRIGGER half** — "Can the path fire?" (reachable, attacker-invokable, not trusted-actor-only)
+> **IMPACT half** — "If it fires, what does the victim lose?" (funds, stuck/locked value, accounting desync, invariant breach, PII, ATO, RCE)
+> Answering the trigger half and assuming the impact half is a **process error**. A proven trigger with an untraced impact is an **OPEN LEAD — never a kill.**
 
-### Theoretical Bug = Wasted Time. Kill These Immediately:
+### Theoretical Bug = Wasted Time. Kill These Immediately (TRIGGER-refutations only):
 
 | Pattern | Kill Reason |
 |---|---|
-| "Could theoretically allow..." | Not exploitable = not a bug |
+| "Could theoretically allow..." | Trigger not proven = not a bug |
 | "An attacker with X, Y, Z conditions could..." | Too many preconditions |
 | "Wrong implementation but no practical impact" | Wrong but harmless = not a bug |
 | Dead code with a bug in it | Not reachable = not a bug |
 | SSRF with DNS-only callback | Need data exfil or internal access |
 | Open redirect alone | Need ATO or OAuth chain |
 | "Could be used in a chain if..." | Build the chain first, THEN report |
+| **Trigger proven but impact NOT traced** | **OPEN LEAD — trace the impact, do NOT kill** |
 
 **You must demonstrate actual harm. "Could" is not a bug. Prove it works or drop it.**
+**Every kill in the table above refutes the TRIGGER half — none of them refute a traced impact. Killing a lead because "the impact seems below the bar" without tracing it is the exact mistake these rules exist to prevent.**
+
+---
+
+## THE TWO-QUESTION RULE — Trigger × Impact (read before ANY kill call)
+
+Every lead carries TWO independent questions. Conflating them is the #1 way good leads die:
+
+| Question | Asked when | Answered by |
+|---|---|---|
+| **Q-TRIGGER** — "Can this code path fire?" | The moment a lead appears | Reachability trace: external entry point → call path → guards/roles |
+| **Q-IMPACT** — "If it fires, what is the harm?" | Immediately after Q-TRIGGER | Impact trace in victim terms: who loses what, how much, permanently or recoverable |
+
+**Rules:**
+
+1. **Both halves get a written trace.** Answering the trigger and assuming the impact (or vice versa) is a process error. If you can only answer one half, the lead stays OPEN.
+2. **Impact is victim-harm, not attacker-profit.** "This doesn't make an attacker money" is NOT a kill. An accounting desync that strands an account's funds (permanently stuck, or recoverable only through a privileged path) is a **Medium floor on Immunefi in its own right** — that's account-owner loss, not "no impact." Whether it chains into attacker profit is a SEPARATE trace you do after, never a precondition for the first.
+3. **Three verdicts only: FINDING / OPEN LEAD / KILL.**
+   - **FINDING** — both halves proven, payload evidence in hand.
+   - **OPEN LEAD** — one half proven, the other untraced or ambiguous. Log it with its `payload:` and chain partners; retest next pass. **OPEN LEAD is a legal state, not a failure.**
+   - **KILL** — both halves refuted with evidence: path proven unreachable AND harm proven nonexistent (or already covered by another finding). A kill without both refutations is a premature kill.
+4. **"Below the bar" is not a kill.** If your honest summary is "trigger fires and the victim loses value, but it's only a Medium" — that's a FINDING (or OPEN LEAD until impact is quantified). You never decide "Medium is too small" before tracing; you decide whether to report a Medium after it's proven.
+5. **Severity estimation never precedes the impact trace.** You cannot score what you haven't traced. If you can state the victim's loss (amount stuck, invariant name, exact data field), you have impact — then estimate severity from the trace.
 
 ---
 
@@ -1703,6 +1732,7 @@ Read it as an Immunefi/Sherlock judge: quote the invariant, trace the exact expl
 - Code in `lib/`, `interfaces/`, `mocks/`, `test/` → KILL (scanner noise)
 - "Docs say X but code does Y" → code is authoritative, report the code behavior
 - Compiler version is old but function unreachable → KILL (reachability before severity)
+- **Trigger proven but impact untraced → OPEN LEAD, not KILL.** "No attacker profit" refutes nothing — an accounting desync that strands or misdirects account value is account-owner loss, a Medium floor on Immunefi on its own. Trace the harm before any severity call (Two-Question Rule).
 
 **Severity rule — "transient DoS" is only valid if it self-resolves:**
 Never call something a "transient DoS" without confirming the recovery path actually exists and executes on its own (a timelock that expires, a keeper that is guaranteed to run, a function any user can call to restore). If recovery depends on an action a specific party may never take, or on conditions you have not verified, score it as permanent DoS (or drop it if no DoS is provable). Assumed recovery = inflated severity.

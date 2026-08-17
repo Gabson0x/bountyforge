@@ -111,6 +111,33 @@ internal routing. A timing difference between two usernames enumerates users.
 A WAF block on `'` but not on `%27` reveals the filter stack. A revert on a
 view function reveals the check order. Log the "no"s. They are your recon.
 
+## Rule 8 — TWO QUESTIONS PER LEAD (TRIGGER × IMPACT). Never kill half a lead.
+
+Every lead has TWO independent questions. They are answered in order, both are
+written down, and a verdict is only legal after BOTH are resolved:
+
+1. **Q-TRIGGER** — "Can this code path fire?" Trace the reachability: external
+   entry point → call path → guards/roles. If it cannot fire → KILL, done.
+2. **Q-IMPACT** — "If it fires, what does the VICTIM lose?" Trace the harm in
+   protocol-native terms: funds, stuck/locked value, accounting desync,
+   invariant breach, PII, ATO, RCE. Who loses what, how much, permanently or
+   recoverable.
+
+Conflation rules:
+
+- **Answering Q-TRIGGER and assuming Q-IMPACT is a process error.** A trigger
+  is the entry ticket, not the finding. A proven trigger with an untraced
+  impact is an OPEN LEAD — carry it, retest it, chain it. It is never a kill.
+- **Impact is victim-harm, not attacker-profit.** "This doesn't make an
+  attacker money" is NOT a kill. An accounting desync that strands an
+  account's value (permanently stuck, or recoverable only through a
+  privileged path) is account-owner loss — a Medium floor on its own. Whether
+  it chains into attacker profit is a SEPARATE trace, never a precondition.
+- **Three verdicts only: FINDING / OPEN LEAD / KILL.** KILL requires BOTH
+  refutations with evidence: path proven unreachable AND harm proven
+  nonexistent. One unproven half = OPEN LEAD, always. "Seems below the bar"
+  is not a refutation; severity estimation never precedes the impact trace.
+
 ## Report-Phase Overrides (the ONLY places strictness still applies)
 
 Wild mode ends when you write a report. The gates below exist, they stay, and
