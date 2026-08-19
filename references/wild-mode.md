@@ -128,6 +128,14 @@ Conflation rules:
 - **Answering Q-TRIGGER and assuming Q-IMPACT is a process error.** A trigger
   is the entry ticket, not the finding. A proven trigger with an untraced
   impact is an OPEN LEAD — carry it, retest it, chain it. It is never a kill.
+  And an OPEN LEAD is a **persistent research object**, not a memory: it lives
+  in `leads.jsonl` (`tools/leads.py`) with its payload, its missing
+  preconditions, and its mutation history. Mutate one variable per attempt
+  until the impact becomes provable. If it still cannot prove impact, PARK it
+  into the chain pool — parked leads are exactly where the main breakthrough
+  comes from later (`--chain-partners` re-scans them on every new finding).
+  Killing is refused until BOTH halves carry refutation evidence; a one-half
+  "kill" is an auto-park with a counted dismissal attempt.
 - **Impact is victim-harm, not attacker-profit.** "This doesn't make an
   attacker money" is NOT a kill. An accounting desync that strands an
   account's value (permanently stuck, or recoverable only through a

@@ -108,10 +108,47 @@ Every lead carries TWO independent questions. Conflating them is the #1 way good
 2. **Impact is victim-harm, not attacker-profit.** "This doesn't make an attacker money" is NOT a kill. An accounting desync that strands an account's funds (permanently stuck, or recoverable only through a privileged path) is a **Medium floor on Immunefi in its own right** — that's account-owner loss, not "no impact." Whether it chains into attacker profit is a SEPARATE trace you do after, never a precondition for the first.
 3. **Three verdicts only: FINDING / OPEN LEAD / KILL.**
    - **FINDING** — both halves proven, payload evidence in hand.
-   - **OPEN LEAD** — one half proven, the other untraced or ambiguous. Log it with its `payload:` and chain partners; retest next pass. **OPEN LEAD is a legal state, not a failure.**
-   - **KILL** — both halves refuted with evidence: path proven unreachable AND harm proven nonexistent (or already covered by another finding). A kill without both refutations is a premature kill.
+   - **OPEN LEAD** — one half proven, the other untraced or ambiguous. It is NOT a journal line that gets dropped — it becomes a **persistent research object** in `state/sessions/{target}/leads.jsonl` (see THE LEAD LEDGER below) with its `payload:`, its chain partners, its missing preconditions, and its mutation history. It is retested next pass by mutating one variable at a time. **OPEN LEAD is a legal state, not a failure.**
+   - **KILL** — both halves refuted with evidence: path proven unreachable AND harm proven nonexistent (or already covered by another finding). A kill without both refutations is a premature kill — the ledger **refuses it and auto-parks the lead into the chain pool** instead.
 4. **"Below the bar" is not a kill.** If your honest summary is "trigger fires and the victim loses value, but it's only a Medium" — that's a FINDING (or OPEN LEAD until impact is quantified). You never decide "Medium is too small" before tracing; you decide whether to report a Medium after it's proven.
 5. **Severity estimation never precedes the impact trace.** You cannot score what you haven't traced. If you can state the victim's loss (amount stuck, invariant name, exact data field), you have impact — then estimate severity from the trace.
+
+---
+
+## THE LEAD LEDGER — OPEN LEADs are persistent state-transition research objects
+
+An OPEN LEAD is an object with a lifecycle, not a note to self. Every lead lives in `state/sessions/{target}/leads.jsonl` and mutates one variable at a time until its impact becomes provable. Engine: `tools/leads.py`.
+
+```
+OPEN ──► MUTATING ──► FINDING   (both halves proven → promoted to findings.jsonl)
+ │          │
+ │          └──────────► PARKED (impact not provable under current preconditions
+ │                                   → stays alive in the chain pool)
+ └──────────────────────► PARKED (kill refused: only one half refuted)
+ │
+ └──► KILLED (ONLY with BOTH refutations recorded with evidence)
+```
+
+**Lead object fields (all persisted, all transition-journaled):** `lead_id`, `state`, `trigger_half` / `impact_half` verdicts (proven/untraced/ambiguous/refuted) with written traces, `preconditions[]` (the missing conditions blocking each half), `payload`, `chain_partners[]`, `mutation_attempts[]` (full one-variable experiment history), `dismissal_attempts`.
+
+### Track the missing preconditions — never the vague block
+
+When a half cannot be proven, decompose the block into **named preconditions** and track each one: *"need a second account for cross-account proof"*, *"need the race window (10ms sleep)"*, *"need admin role"*, *"need sibling endpoint /v2/users/{id}"*, *"need chain partner for ATO"*. Each resolves to `missing → present | refuted | irrelevant` **with evidence**. A lead with an unresolved precondition is unprovable for a known, named reason — that is research state, not deadness.
+
+### The one-variable mutation loop
+
+1. `mutate_lead()` records **exactly one** variable change per attempt: `variable, old, new, result (advanced/unchanged/refuted/error), evidence`. Never two variables at once — you could never attribute the result.
+2. `next_mutation()` deterministically picks the first missing precondition whose exact `(variable, value)` pair was **never tried** — agents never repeat a dead experiment and never blind-spray.
+3. Each mutation is a full lead snapshot appended to `leads.jsonl` — the transition history IS the tamper-evident research log.
+4. Exhaustion is not death: if every missing precondition has been tried, pick a **new value for one variable** — or park the lead. Never kill on exhaustion.
+
+### PARKED ≠ dead — the chain pool is where breakthroughs come from
+
+A lead whose impact is not provable under current preconditions is **parked, never dropped**. PARKED leads stay in the chain pool; `find_chain_partners()` re-scans findings AND parked leads on every new finding so a parked lead can become the missing half of a later A→B chain (open redirect + new OAuth endpoint, IDOR read + new write endpoint, SSRF + newly discovered internal service). The lead that "wasn't a bug" in pass 1 is the critical partner in pass 3.
+
+### Kill guard (the anti-dismissal lock)
+
+`kill_lead()` **refuses** unless BOTH halves are refuted with evidence strings (path proven unreachable AND harm proven nonexistent). A one-half refutation is not a kill — it is an **auto-park with a counted dismissal attempt** (`dismissal_attempts`), journaled as `lead_kill_refused`. If you find yourself wanting to kill a lead with one half open, the ledger will not let you: park it, chain it, retest it next pass.
 
 ---
 
@@ -2083,6 +2120,7 @@ All tools are in `tools/` relative to this SKILL.md. Use them directly — do no
 |------|---------|-------|
 | `tools/hunt.py` | Session management, curl builder, auth-aware requests, active injection (SQLi/XSS/SSTI/RCE/path-traversal) | `python3 tools/hunt.py --target T --active --json` |
 | `tools/state.py` | Session state persistence (endpoints, findings) | Import and use `SessionState` class |
+| `tools/leads.py` | Lead Ledger — persistent OPEN LEAD state-transition objects (preconditions, one-variable mutation loop, chain pool, kill guard) | `--add/--set-half/--next-mutation/--mutate/--park/--kill/--chain-partners` |
 | `tools/agent_bus.py` | Inter-agent signal passing | Import and use `AgentBus` class |
 
 ### Exploit Generation

@@ -10,6 +10,7 @@ State directory structure:
         journal.jsonl     — append-only event log
         endpoints.jsonl   — tested endpoints with results
         findings.jsonl    — confirmed findings
+        leads.jsonl       — persistent OPEN LEAD research objects (state transitions)
         dead_ends.jsonl   — paths that yielded nothing
 
 Safety guarantees:
@@ -88,6 +89,7 @@ class SessionState:
     endpoints_tested: int = 0
     findings_count: int = 0
     dead_ends: int = 0
+    leads_open: int = 0  # OPEN + MUTATING leads in the ledger (tools/leads.py)
     session_ids: List[str] = field(default_factory=list)
     auth_method: str = "none"  # cookie, bearer, oauth, none
 
@@ -250,6 +252,7 @@ def get_state_summary(target: str) -> Dict:
         "updated": state.updated_at,
         "endpoints_tested": state.endpoints_tested,
         "findings": state.findings_count,
+        "open_leads": state.leads_open,
         "dead_ends": state.dead_ends,
         "sessions": len(state.session_ids),
         "auth_method": state.auth_method,

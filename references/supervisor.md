@@ -10,7 +10,10 @@ The supervisor is the quality gate between raw scanner output and a submitted re
 Raw Finding → Gate 0 (Reality) → Gate 1 (Impact) → Gate 2 (Dedup) → Gate 3 (Quality) → Report
                                 ↓ FAIL            ↓ FAIL          ↓ FAIL
                              KILL / DEMOTE      KILL / DEMOTE   KILL / DEMOTE
-                OPEN LEAD (trigger proven, impact untraced) — payload kept, retested next pass
+                OPEN LEAD (trigger proven, impact untraced) → persisted as a lead
+                object in leads.jsonl with missing preconditions; mutated one
+                variable at a time and retested next pass; parked leads stay
+                in the chain pool (tools/leads.py)
 ```
 
 ---
@@ -69,7 +72,7 @@ The Impact Litmus Test answers ONE half of every lead. A kill is legal only
 after BOTH halves are resolved:
 
 - **Q-TRIGGER** — "Can the path fire?" If refuted (unreachable, trusted-actor-only with no bypass) → KILL.
-- **Q-IMPACT** — "If it fires, what does the VICTIM lose?" If untraced → **DEMOTE to OPEN LEAD**, not KILL. Keep the payload; retest next pass.
+- **Q-IMPACT** — "If it fires, what does the VICTIM lose?" If untraced → **DEMOTE to OPEN LEAD**, not KILL. The lead becomes a persistent research object (`tools/leads.py`): decompose the block into named missing preconditions, mutate one variable at a time until impact is provable, and keep the payload. If it still cannot prove impact, PARK it into the chain pool — never drop it. A kill without BOTH refutations is refused by the ledger and auto-parks instead.
 
 **Conflation is the failure mode.** Answering "can it fire?" and moving on
 because the impact "seems below the bar" is the mistake this gate exists to
