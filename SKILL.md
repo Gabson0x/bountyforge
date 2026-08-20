@@ -150,6 +150,19 @@ A lead whose impact is not provable under current preconditions is **parked, nev
 
 `kill_lead()` **refuses** unless BOTH halves are refuted with evidence strings (path proven unreachable AND harm proven nonexistent). A one-half refutation is not a kill — it is an **auto-park with a counted dismissal attempt** (`dismissal_attempts`), journaled as `lead_kill_refused`. If you find yourself wanting to kill a lead with one half open, the ledger will not let you: park it, chain it, retest it next pass.
 
+### Dismissed-Lead Ledger with Re-Trigger Conditions
+
+Every KILLED or PARKED lead records a **re-trigger condition** — the exact observable that would reopen it. This turns negative results into a tripwire table instead of wasted re-work. Format:
+
+| Dead End | Observable that Reopens |
+|----------|------------------------|
+| RAM escape | New shared-memory region appears between host/guest |
+| vsock channel | vsock device enumerated in `/sys/class/vsock` |
+| MMDS metadata | `169.254.169.254` responds with non-empty body |
+| Per-sandbox CA | CA cert in `/etc/ssl` differs between sandbox instances |
+
+On each new recon pass or environment change, scan the tripwire table. Any hit promotes the lead back to OPEN with the triggering evidence attached.
+
 ---
 
 ## PILLARS & RULES — The Methodology Spine
@@ -187,6 +200,22 @@ The six map files — `asset.md`, `trust.md`, `authz.md`, `state.md`, `capabilit
 - **5-MINUTE RULE** — a surface shows nothing after 5 min probing (all 401/403/404)? Switch surfaces (recovery flows, integrations, siblings), not just targets.
 - **ONE-HOUR RULE** — stuck on one target for an hour with no progress? Switch context.
 - **TWO-EYE APPROACH** — combine systematic checklist testing with anomaly detection.
+
+### Scope-Text Re-Derivation Gate
+
+Before investing deep hours in ANY candidate lead, re-keyword the program's scope text against the candidate. Extract: listed vulnerability classes, excluded classes, asset boundaries, and severity definitions. Only in-scope classes get hours. A lead in an unlisted class is either (a) reclassified into a listed class, or (b) deprioritized below all in-scope work. Re-derive on every new candidate, not just at hunt start.
+
+### Abandonment Discipline — When to Stop
+
+The 5-minute and 1-hour rules govern surface/target switching, but strategic engagement termination requires formal kill criteria:
+
+1. **All 5 maps (P1–P5) are complete and reviewed.**
+2. **Every reachable attack surface has been probed** (no untested cells in `authz.md`).
+3. **Every OPEN lead has been mutated to exhaustion or parked with re-trigger conditions.**
+4. **Hardening evidence is catalogued:** specific security controls blocking each attack class (ASLR+PIE, seccomp-bpf filters, capability drops, network namespace isolation).
+5. **The tripwire table is fully populated** for every dead end.
+
+**The deliverable:** A structured "No Exploitable Vulnerability" verdict IS a deliverable. It documents maps, lead states, hardening evidence, tripwire table, and time spent per surface. This negative result prevents future re-work and proves thorough diligence.
 
 > The rest of the old rule list (payload-first, chain freely, no ceilings, probe-in-doubt) is wild-mode mindset — see `references/wild-mode.md`. Report-time gates (no theoretical bugs, kill weak findings, verify data not public, cred leaks need proof) live in "THE ONLY QUESTION THAT MATTERS" + `references/supervisor.md`.
 
@@ -941,6 +970,19 @@ HIGHEST PRIORITY (crown jewel x easiest entry):
 - [ ] Check WebSocket messages for client-supplied IDs
 - [ ] Test batch endpoints (can you request multiple IDs?)
 
+### Scoping-Order Analysis (Existence Oracles & Validation Ordering)
+
+Before testing object-level access controls, probe the **validation ordering** by sending requests with malformed parameters to existing vs non-existing objects:
+
+| Status Code Delta | Cause | Vulnerability / Signal |
+|-------------------|-------|------------------------|
+| `400` vs `404` | Body validation runs before resource existence check | **Existence Oracle** (probe object existence pre-authz) |
+| `415` vs `403` | Content-Type validation runs before authorization check | **Parser Differential** (unauthenticated schema probe) |
+| `400` vs `403` | Body validation runs before authorization check | **Authz Bypass Potential** (manipulate body to bypass authz check) |
+
+- **Existence Oracle:** If requesting a non-existent object returns `404` while an unauthorized existing object returns `400` (or `403`), attackers can enumerate valid resource IDs.
+- **Timing deltas:** Compare response times between valid vs invalid resource IDs to identify blind existence/authz checking logic.
+
 ### Creating Test Accounts (Disposable Email & Phone)
 
 IDOR needs two accounts. Most programs require email verification; some require SMS. Don't use your real accounts — you need burner identities you fully control.
@@ -1660,6 +1702,42 @@ npm publish  # with malicious postinstall script
 - **Go modules:** Check go.mod for private module paths
 - **Docker base images:** Check if target publishes to Docker Hub with stale base images
 - **GitHub Actions:** Check if target uses unpinned actions (mutable tags → impostor commits)
+
+---
+
+## Platform-Hosted Product Hunting (PHP) — Cloud / VM / Sandbox Targets
+
+When the target is a cloud provider, VM host, serverless platform, or sandboxed execution environment (Vercel, AWS, Firecracker, Fly.io, Modal), standard web checklists miss the architecture-level attack surface. Apply this module:
+
+### Phase 0 — Docs Extraction (The Firewall & Limitation Matrix)
+
+Documentation for platform products details both official semantics AND **documented limitations** (domain fronting, subnet bypass, DNS exfil, per-sandbox CA, live update mechanisms). Bugs live in the "limitations" and "unsupported" sections.
+- **Rule:** Fetch ALL official documentation pages → extract endpoint lists + documented behaviors + documented limitations → **the limitations ARE your test matrix**.
+
+### SDK-as-SPEC — Parse the Client Package
+
+Web site JS bundles are minified and incomplete. Official client packages (npm, PyPI, Crates.io) expose the exact API map, request schemas, and internal validation rules.
+- **Rule:** Extract and parse official SDK packages (`node_modules/@vendor/package/dist/`). Search for endpoint maps, Zod/Joi/Yup validators, internal headers, and undocumented RPC calls.
+
+### Local Lab Replication (Open-Source Component Fuzzing)
+
+Remote endpoints often have network rate limits or protocol handshakes that limit fuzzing efficiency.
+- **Rule:** When the target uses open-source underlying components (e.g., Firecracker, WASM runtime, proxy daemons), extract the source, build locally, and fuzz with stateful handshakes and AddressSanitizer (ASan) / MemorySanitizer (MSan). Local stateful fuzzing reaches code paths remote fuzzers never hit.
+
+### Protocol-Level Testing Over SDK Abstraction
+
+High-level SDKs abstract away protocol subtleties (h2c/HPACK framing, protobuf field ordering, gRPC trailers, END_STREAM flags).
+- **Rule:** Sniff raw network traffic (`AF_PACKET` / `tcpdump`) → decode frames → reimplement raw requests. Manipulating low-level protocol flags directly often bypasses SDK-enforced restrictions.
+
+### Feature-Abuse SSRF (Network I/O Features)
+
+Platform-hosted products frequently offer features that execute network I/O on behalf of users (URL previews, webhook dispatchers, proxy endpoints, image importers).
+- **Rule:** Abuse URL validators and redirect behaviors. Test internal IP ranges (`169.254.169.254`, `127.0.0.1`, cloud metadata), protocol downgrades (`http` to `gopher`/`file`), and DNS rebinding against Host-side fetchers.
+
+### Raw-Device Forensics (VM / Sandbox Recon)
+
+In sandboxed or virtualized environments where you achieve local code execution or root inside a guest container:
+- **Rule:** Scan raw block devices (`/dev/vda`, `/dev/sda`, `/dev/mem`) for pooled image residue, host memory remnants, prior tenant data, and uncleaned secrets.
 
 ---
 

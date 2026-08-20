@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.3.5 (2026-08-20)
+
+### Added
+- **Platform-Hosted Product Hunting (PHP)** (`SKILL.md`): New target hunting module for cloud/VM/sandbox targets (Vercel, AWS, Firecracker, Fly.io, Modal) addressing 10 critical gaps from post-mortem analysis:
+  - **Phase 0 — Docs Extraction**: Extract endpoint list, documented behaviors, and documented limitations (bugs live in the limitations sections).
+  - **SDK-as-SPEC**: Grep npm/PyPI client packages (`node_modules/@vendor/package/dist/`) for full route maps, Zod/Joi validators, and internal API interfaces.
+  - **Local Lab Replication**: Extract open-source target components and perform local stateful fuzzing with ASan/MSan to reach complex handshake code paths.
+  - **Protocol-Level Testing**: Sniff wire traffic via `AF_PACKET` / `tcpdump` and test raw requests over SDK abstractions (h2c, HPACK, protobuf, END_STREAM flags).
+  - **Feature-Abuse SSRF**: Target product features executing network I/O with URL validator bypasses, cloud metadata probes, and DNS rebinding.
+  - **Raw-Device Forensics**: Scan raw block devices (`/dev/vda`, `/dev/sda`) inside guest containers/VMs for pooled image residue and host secrets.
+- **Scoping-Order Analysis** (`SKILL.md`, IDOR section): Probe validation ordering (`400` vs `404` vs `415` vs `403`) to identify existence oracles and pre-authz schema processing.
+- **Scope-Text Re-Derivation Gate** (`SKILL.md`, Operating Constraints): Mandatory keyword re-derivation against program scope before investing deep hours into candidate leads.
+- **Dismissed-Lead Ledger with Re-Trigger Conditions** (`SKILL.md`, Lead Ledger): Tripwire table mapping dead-end leads to specific observables that reopen them.
+- **Abandonment Discipline — When to Stop** (`SKILL.md`, Operating Constraints): Concrete 5-point kill criteria and negative-verdict deliverable requirements for engagement completion.
+
+---
+
 ## v3.4.1 (2026-08-17)
 
 ### Added
