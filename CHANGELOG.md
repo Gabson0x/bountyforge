@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.3.5 (2026-08-20)
+## v3.3.3 (2026-08-20)
 
 ### Added
 - **Platform-Hosted Product Hunting (PHP)** (`SKILL.md`): New target hunting module for cloud/VM/sandbox targets (Vercel, AWS, Firecracker, Fly.io, Modal) addressing 10 critical gaps from post-mortem analysis:
