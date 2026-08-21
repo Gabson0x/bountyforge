@@ -1,6 +1,123 @@
 # Report Formatting Guide
 
-Format the final output based on the target platform. Default to Generic if no platform is specified.
+Format the final output based on the target platform and program policy. Default to Defensive-Proof Format for bug bounty submissions.
+
+---
+
+## Defensive-Proof Format (Policy & Scope Calibrated)
+
+Use this format to make reports bulletproof against triager rejection. It embeds the **Policy & Scope Gate**, **Path A vs Path B Comparison**, **Absent Credential Evidence Grid**, and **Demonstrated vs Inferred Classification Matrix**.
+
+```markdown
+# [Target Name] Vulnerability Report
+## [Descriptive, Non-Overclaimed Vulnerability Title]
+
+---
+
+## Scope & Engagement Gate
+
+- **Engagement Context:** [BBP | VDP | Direct Vendor Disclosure | Internal Red Team / Pentest]
+- **Target Asset:** [Exact domain, IP, repo, contract, or binary]
+- **In Scope:** [Yes / N/A (Independent Research)]
+- **Explicit Exclusions:** [Check program/vendor policy for excluded assets or classes; None if self-hosted/pentest]
+- **Governing Rule / Policy:** [Quote program policy clause, security advisory terms, or Audit Rules of Engagement]
+- **Impact & Boundary Threshold:** [Demonstrated security boundary crossed or business risk proven]
+- **Evidence Supporting Eligibility:** [Concrete demonstrated observations proving impact]
+
+**Severity:** <Critical | High | Medium | Low>
+**Vulnerability Type:** <Primary CWE / Class> (e.g. CWE-306, CWE-284, CWE-639)
+**Affected Component:** <Component / Endpoint / Daemon Listener> (`<path/port/URL>`)
+---
+
+## Summary
+
+<3–5 sentences. State exact action, location, vulnerability class, and demonstrated impact. No jargon in sentence 1. Include explicit statement of what is NOT claimed if scope/severity is sensitive (e.g. "I am not claiming a host escape").>
+
+---
+
+## Control Plane vs Unauthenticated Listener Architecture (Path A vs Path B)
+
+```
+Path A — Authenticated (Legitimate Intended Flow / SDK / UI):
+[ Client / User ] ──( Presents API Key / Bearer Token / Session )──► [ Authenticated Gateway ] ──► [ Execution ]
+
+Path B — Unauthenticated (Unauthorized Direct Listener / Bypass Flow):
+[ Workload / Attacker ] ──( Cleartext h2c / TCP with ZERO credentials )──► [ Local Listener ] ──► [ Direct Execution ]
+```
+
+- **Path A (Legitimate Intended Flow):** Requires valid authentication credentials (e.g. Bearer token, API key, OAuth state).
+- **Path B (Unauthorized Flow Demonstrated):** Accepts equivalent operations directly without presenting any credential or authorization token.
+- **Security Boundary Crossed:** [Explicit description of the authorization barrier bypassed]
+
+---
+
+## Absent Credential Evidence Grid
+
+The vulnerability was verified from a bare process environment with no inherited credentials, API tokens, or session artifacts:
+
+| Credential / Artifact | Present in Attack Request? | Verification Evidence |
+|-----------------------|---------------------------|-----------------------|
+| Authorization Header  | ❌ No | HEADERS frame contains only standard HTTP pseudo-headers |
+| Bearer / API Token    | ❌ No | `/proc/self/environ` contains no TOKEN/KEY/SECRET variables |
+| Session Cookie        | ❌ No | No Cookie header; cookie jar empty |
+| Session File          | ❌ No | No token files in local filesystem or shared run directories |
+| mTLS Certificate      | ❌ No | Connection opened over standard unauthenticated cleartext TCP / TLS |
+| Capability Token      | ❌ No | No capability payload or signed request headers |
+
+---
+
+## Demonstrated vs. Inferred Audit Matrix
+
+| Claim | Verification Status | Evidence / Reasoning |
+|-------|--------------------|----------------------|
+| [Target accepts unauthenticated request] | **Demonstrated** | [Executed request succeed with zero headers] |
+| [Execution context equals SDK capability] | **Demonstrated** | [Executed `id` returning same UID/GID as SDK] |
+| [Guest isolation boundary crossed] | **Demonstrated** / **Inferred** | [Exact boundary verification] |
+| [Host escape / system takeover] | **Unproven** | [Explicitly NOT claimed unless directly executed] |
+
+---
+
+## Root Cause
+
+### 1. [Root Cause Title]
+- [Tight bullet explaining exact line / config where authorization is missing or state is unverified]
+- [Reference specific source code file, function, line number, or port binding]
+
+---
+
+## Steps to Reproduce
+
+1. [Step 1: Setup / context]
+2. [Step 2: Copy-pasteable curl / python command]
+3. [Step 3: Execute and observe response]
+
+**Expected (if secure):** [What secure behavior / auth check should happen]
+**Actual:** [What the vulnerable endpoint does — command execution / data exfiltration]
+
+---
+
+## Proof of Concept (PoC)
+
+```python
+# Self-contained, zero-dependency PoC
+import socket
+...
+```
+
+---
+
+## Security Impact
+
+- **Demonstrated Capability:** An attacker with [access level] can [exact action] without credentials.
+- **Program Policy Threshold:** Meets program requirement by demonstrating [policy eligibility evidence].
+
+---
+
+## Recommended Remediation
+
+1. [Actionable fix step 1 — e.g. enforce authentication on listener or restrict network binding]
+2. [Actionable fix step 2]
+```
 
 ---
 

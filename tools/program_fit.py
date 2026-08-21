@@ -48,6 +48,12 @@ class Platform(str, Enum):
     GENERIC = "generic"
 
 
+class EngagementContext(str, Enum):
+    BUG_BOUNTY_PLATFORM = "bug_bounty_platform"       # Platform-based (H1, Bugcrowd, Immunefi)
+    DIRECT_VENDOR_DISCLOSURE = "direct_vendor_disclosure" # Independent research / advisory
+    INTERNAL_RED_TEAM = "internal_red_team"           # Corporate network / codebase pentest
+
+
 class FitResult(str, Enum):
     INCLUDE = "include"         # Fits program — include in report
     EXCLUDE = "exclude"         # Out of scope or not accepted — log only

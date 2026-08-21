@@ -1,5 +1,30 @@
 # Changelog
 
+## v3.4.0 (2026-08-21)
+
+### Added
+- **Adversarial Refutation Engine Upgrade** (`tools/refutation.py`): Automated refutation engine now evaluates findings against the 10 Red Team Attack Questions and enforces `Demonstrated` vs `Inferred` classification before clearing findings.
+- **Exploit Generator Upgrade** (`tools/exploit_gen.py`): Python PoC script generator now embeds an automated **Absent Credential Evidence Grid** audit function (`verify_absent_credentials`) that verifies `Authorization` headers, bearer tokens, cookies, and environment variables before payload execution.
+- **Program Fit Multi-Context Support** (`tools/program_fit.py`): Added `EngagementContext` enum supporting `BUG_BOUNTY_PLATFORM`, `DIRECT_VENDOR_DISCLOSURE`, and `INTERNAL_RED_TEAM` modes.
+- **Persistent Lead Ledger Tripwires** (`tools/leads.py`): Added `re_trigger_conditions[]` field to `Lead` dataclass for tracking tripwire observables on killed and parked leads.
+- **New Reference Attack Vectors** (`references/attack-vectors/`):
+  - **Cloud Sandbox & Micro-Hypervisor Vectors** (`cloud-sandbox-vectors.md`): Unauthenticated guest daemons (h2c/gRPC), VSock protocol desync (`AF_VSOCK`), Firecracker MMDS metadata exploitation, WASM linear memory bounds bypass, and raw block forensics (`/dev/vda`).
+  - **Agentic AI & MCP Server Vectors** (`agentic-ai-vectors.md`): MCP tool parameter smuggling, multi-agent context poisoning & handoff hijacking, indirect prompt injection via documentation, and excessive agency bounds bypass.
+
+---
+
+### Added
+- **5-Step Methodology Spine** (`references/supervisor.md`, `SKILL.md`): Core triage and evaluation sequence grounded in `Program Policy → Scope → Security Boundary → Demonstrated Impact → Severity`.
+- **Red Team Adversarial Triage Engine** (`references/supervisor.md`, `SKILL.md`): Before report generation, BountyForge attacks its own finding across 10 Red Team Attack Questions (Scope, Policy, Precondition, Authentication, Path A, Path B, Boundary, Impact, Alternative explanation, Evidence). Findings that cannot survive the strongest plausible triager rebuttal are blocked from promotion to a report.
+- **Demonstrated vs. Inferred vs. Unproven Classification** (`references/supervisor.md`, `references/report-formatting.md`, `SKILL.md`): Enforces explicit status tagging (`Demonstrated`, `Inferred`, `Unproven`) on every technical claim to prevent report drift from demonstrated primitives (e.g. unauthenticated guest execution) into unproven speculation (e.g. host escape).
+- **Scope & Engagement Gate** (`references/supervisor.md`, `references/report-formatting.md`, `SKILL.md`): Replaces static platform assumptions with multi-context engagement scope derivation supporting Bug Bounty Platforms (BBP/VDP), Direct Vendor Private Disclosures, and Internal Red Team / Pentests.
+- **Defensive-Proof Report Formatting** (`references/report-formatting.md`, `SKILL.md` Phase 5):
+  - **Path A vs Path B Comparison**: Contrasts legitimate intended flow vs unauthorized flow demonstrated.
+  - **Absent Credential Evidence Grid**: Explicit markdown grid proving absence of Authorization headers, Bearer tokens, cookies, session files, mTLS, or capability tokens.
+  - **Demonstrated vs Inferred Audit Matrix**: Embedded status table in reports proving technical rigor.
+
+---
+
 ## v3.3.3 (2026-08-20)
 
 ### Added

@@ -18,6 +18,137 @@ Raw Finding → Gate 0 (Reality) → Gate 1 (Impact) → Gate 2 (Dedup) → Gate
 
 ---
 
+## The 5-Step Methodology Spine
+
+All triage and evaluation flows strictly follow this 5-step sequence:
+
+```
+Program Policy ──► Scope ──► Security Boundary ──► Demonstrated Impact ──► Severity
+```
+
+1. **Program Policy:** What are the exact terms, rules, and eligibility thresholds stated in the program policy?
+2. **Scope:** Is the exact asset, subdomain, endpoint, repo, or binary listed as in-scope?
+3. **Security Boundary:** What specific authorization check, isolation barrier, or trust assumption is crossed?
+4. **Demonstrated Impact:** What capability was *proven* through direct execution (never inferred or assumed)?
+5. **Severity:** What is the calibrated severity level derived strictly from demonstrated impact + program policy?
+
+---
+
+## Red Team Adversarial Triage Engine
+
+Before drafting a report, BountyForge must **attack its own finding**. Switch mindsets to a hostile platform triager trying to reject the submission.
+
+Run the **10 Red Team Attack Questions**:
+
+1. **Scope:** Is the exact asset/function in scope?
+2. **Policy:** Is this vulnerability class explicitly excluded?
+3. **Precondition:** What does the attacker actually need?
+4. **Authentication:** What credential/authorization is supposed to exist?
+5. **Path A:** What is the legitimate intended flow?
+6. **Path B:** What unauthorized flow was demonstrated?
+7. **Boundary:** What security boundary is crossed?
+8. **Impact:** What concrete capability does the attacker gain?
+9. **Alternative explanation:** What is the strongest reasonable triager rebuttal?
+10. **Evidence:** What observation defeats that rebuttal?
+
+> **THE RED TEAM RULE:**
+> **If the finding cannot survive the strongest plausible triager objection, DO NOT promote it to a report.** Demote to an OPEN LEAD in `leads.jsonl`, mutate preconditions, or park it.
+
+---
+
+## Demonstrated vs. Inferred vs. Unproven Classification
+
+To prevent report drift (e.g. inflating a "powerful guest execution primitive" into an "unproven sandbox host escape"), every claim in a finding MUST be categorized into an explicit verification status:
+
+| Status Tag | Definition | Example |
+|------------|------------|---------|
+| **Demonstrated** | Verified directly via executed PoC with observable output | `ControllerService` accepts unauthenticated TCP connections; returns `uid=0` output |
+| **Inferred** | Logically suggested by code structure or system architecture but not directly executed | User namespace isolation is active inside container based on `/proc/self/uid_map` |
+| **Unproven** | Speculative impact requiring unexecuted exploits or unverified preconditions | User namespace permits host kernel escape; host compromise achieved |
+
+### Drift Audit Matrix (Run Before Report Writing)
+
+```markdown
+| Claim | Status | Verification Evidence / Reason |
+|-------|--------|---------------------------------|
+| Target endpoint accepts unauthenticated requests | Demonstrated | TCP connect + h2c request succeed with zero headers |
+| SDK credential isn't supplied | Demonstrated | No TOKEN/KEY header, `/proc/self/environ` clean |
+| Execution context equals SDK capability | Demonstrated | Executed `id; uname -a` returning same UID/GID as SDK exec |
+| User namespace gives root inside container | Demonstrated | `id` returns `uid=0(root)` inside guest namespace |
+| User namespace permits host escape | Inferred / Unproven | No host-side execution demonstrated |
+| Host compromise achieved | Unproven | No host-side read/write demonstrated |
+| Critical severity claimed | Unproven | Severity MUST be calibrated to demonstrated primitive only |
+```
+
+---
+
+## Scope & Engagement Gate
+
+BountyForge supports three engagement modes depending on how the hunt is conducted:
+
+| Engagement Mode | Context & Target | Scope Source | Primary Goal |
+|-----------------|------------------|--------------|--------------|
+| **Bug Bounty Platform (BBP / VDP)** | HackerOne, Bugcrowd, Intigriti, Immunefi | Program Policy Page & Rules | Policy compliance, platform triage pass, bounty reward |
+| **Direct Vendor / Independent Research** | Security advisory, private disclosure, open-source | Vendor Security Policy / Security Boundary | Responsible disclosure, vendor security advisory, patch verification |
+| **Internal Red Team / Pentest / Audit** | Corporate network, codebase audit, internal target | Rules of Engagement / Audit Scope | System hardening, risk assessment, executive report |
+
+```markdown
+## Scope & Engagement Gate
+
+- **Engagement Context:** [BBP | VDP | Direct Vendor Disclosure | Internal Red Team / Pentest]
+- **Target Asset:** [Exact domain, IP, repo, contract, or binary]
+- **In Scope:** [Yes / N/A (Independent Research)]
+- **Explicit Exclusions:** [Check program/vendor policy for excluded assets or classes; None if self-hosted/pentest]
+- **Governing Rule / Policy:** [Quote program policy clause, security advisory terms, or Audit Rules of Engagement]
+- **Impact & Boundary Threshold:** [Demonstrated security boundary crossed or business risk proven]
+- **Evidence Supporting Eligibility:** [Concrete demonstrated observations proving impact]
+```
+
+### Scope & Policy Derivation Rules
+
+1. **Platform Hunts (BBP / VDP):** Extract explicit policy terms. Verify asset is listed in-scope and vulnerability class is not excluded.
+2. **Direct Vendor / Independent Research:** Verify target belongs to vendor infrastructure/software. Ensure research adheres to standard safe-harbor / vulnerability disclosure guidelines.
+3. **Internal Pentest / Red Team:** Align finding to engagement Rules of Engagement (RoE) and technical risk impact.
+
+---
+
+## Defensive-Proof Wording & Anti-Triager Blueprint
+
+Triagers look for reasons to reject. Eliminate their arguments before they type them:
+
+### 1. Path A (Intended) vs Path B (Unintended) Framing
+
+When reporting unauthenticated access to a daemon, API, or listener:
+- **Path A (Authenticated / Intended Flow):** Show that the primary control plane *requires* authentication (API key, OAuth, Bearer token).
+- **Path B (Unintended / Unauthorized Flow):** Show that the secondary / internal listener accepts equivalent operations *without* presenting any credential.
+- **Boundary Crossed:** Contrast Path A and Path B to prove an unauthenticated bypass of the intended control plane authorization barrier.
+
+### 2. Absent Credential Evidence Grid (Mandatory for Unauth Findings)
+
+Every unauthenticated vulnerability report MUST include an explicit evidence table:
+
+```markdown
+| Credential / Artifact | Present in Attack Request? | Verification Evidence |
+|-----------------------|---------------------------|-----------------------|
+| Authorization Header  | ❌ No | HEADERS frame contains only standard HTTP pseudo-headers |
+| Bearer / API Token    | ❌ No | `/proc/self/environ` contains no TOKEN/KEY/SECRET variables |
+| Session Cookie        | ❌ No | No Cookie header; cookie jar empty |
+| Session File          | ❌ No | No token files in local filesystem or shared run directories |
+| mTLS Certificate      | ❌ No | Connection opened over standard unauthenticated cleartext TCP / TLS |
+| Capability Token      | ❌ No | No capability payload or signed request headers |
+```
+
+### 3. Overclaim Prevention Table
+
+| Overclaimed Title (Triggers Triager Rejection) | Bulletproof Defensive Title (Triager Accepts) |
+|-----------------------------------------------|-----------------------------------------------|
+| "Host Escape / Container Breakout in Sandbox" | "Unauthenticated `ControllerService` Listener Exposes Command Execution to Guest Workload Processes" |
+| "Full Account Takeover via API" | "IDOR in `/api/v2/users/{id}/email` Allows Authenticated User to Modify Secondary Account Email" |
+| "Remote Code Execution via File Upload" | "Arbitrary File Upload to Web-Accessible Directory Enables Script Execution in Web Server Context" |
+| "Authentication Bypass in OAuth Flow" | "Missing `state` Validation in `/oauth2callback` Enables Cross-Site Request Forgery (Login CSRF)" |
+
+---
+
 ## Gate 0: Reality Check (30 seconds)
 
 The finding must be REAL — confirmed with actual HTTP requests or code execution, not speculation from reading code.

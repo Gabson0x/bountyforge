@@ -124,6 +124,7 @@ class Lead:
     mutation_attempts: List[Dict] = field(default_factory=list)
     dismissal_attempts: int = 0
     kill_refusal_reasons: List[str] = field(default_factory=list)
+    re_trigger_conditions: List[Dict] = field(default_factory=list)  # Tripwire table entries: {"dead_end": "...", "observable": "..."}
     created_at: str = ""
     updated_at: str = ""
 

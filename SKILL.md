@@ -367,7 +367,7 @@ mkdir -p state/sessions/T/maps
 
 Core references (all modes): `{resolved_path}/methodology.md`, `{resolved_path}/judging.md`, `{resolved_path}/supervisor.md`, `{resolved_path}/wild-mode.md`, `{resolved_path}/al-mizaan-gates.md`, `{resolved_path}/sis-intelligence.md`, `{resolved_path}/isolation.md`, `{resolved_path}/knowledge.md`, `{resolved_path}/report-formatting.md`, `{resolved_path}/cvss-guide.md`, `{resolved_path}/setup.md`, `{resolved_path}/local-tooling.md`, `{resolved_path}/bug-bounty-intelligence-mcp.md`
 
-Attack vectors (all): `references/attack-vectors/smart-contract-vectors.md`, `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/attack-vectors/spel-injection-vectors.md`, `references/attack-vectors/zerodays.md`
+Attack vectors (all): `references/attack-vectors/smart-contract-vectors.md`, `references/attack-vectors/web-api-vectors.md`, `references/attack-vectors/business-logic-vectors.md`, `references/attack-vectors/spel-injection-vectors.md`, `references/attack-vectors/zerodays.md`, `references/attack-vectors/cloud-sandbox-vectors.md`, `references/attack-vectors/agentic-ai-vectors.md`
 
 Hacking agents (all): `references/hacking-agents/shared-rules.md` + every `references/hacking-agents/*.md`
 
@@ -1774,9 +1774,27 @@ The criticals on audited code are rarely in the code. Rank effort by where bugs 
 
 ---
 
-## The 7-Question Gate (Run BEFORE Writing ANY Report)
+## The 7-Question Gate & Red Team Triage Engine (Run BEFORE Writing ANY Report)
 
 > **HUNT vs REPORT (wild mode):** These gates are the LAST step of the pipeline — they filter what gets SUBMITTED. They are never run during the hunt, never kill a probe, and never delete a lead. A finding that fails a gate is demoted to a LEAD with its payload and its chain partners, and retested on the next pass. **Firing a payload is always allowed; the gates only decide what a human triager reads.**
+>
+> **5-STEP METHODOLOGY SPINE:** `Program policy → Scope → Security boundary → Demonstrated impact → Severity`
+>
+> **RED TEAM TRIAGE ENGINE:** Before drafting a report, apply `references/supervisor.md` — BountyForge attacks its own finding across **10 Red Team Attack Questions**:
+> 1. *Scope:* Is the exact asset/function in scope?
+> 2. *Policy:* Is this vulnerability class explicitly excluded?
+> 3. *Precondition:* What does the attacker actually need?
+> 4. *Authentication:* What credential/authorization is supposed to exist?
+> 5. *Path A:* What is the legitimate intended flow?
+> 6. *Path B:* What unauthorized flow was demonstrated?
+> 7. *Boundary:* What security boundary is crossed?
+> 8. *Impact:* What concrete capability does the attacker gain?
+> 9. *Alternative explanation:* What is the strongest reasonable triager rebuttal?
+> 10. *Evidence:* What observation defeats that rebuttal?
+>
+> **THE RED TEAM RULE:** If the finding cannot survive the strongest plausible triager objection, DO NOT promote it to a report.
+>
+> **DEMONSTRATED VS INFERRED RULE:** Explicitly categorize every claim as **Demonstrated** (verified via executed PoC), **Inferred** (suggested by code/arch but unexecuted), or **Unproven** (speculative). Never allow report drift from a demonstrated primitive to an unproven claim (e.g. guest execution primitive drifting into unproven host escape).
 
 All 7 must be YES. Any NO → STOP. See also `references/supervisor.md` for detailed triage flow and `references/al-mizaan-gates.md` for deep validation methodology.
 
@@ -1927,47 +1945,97 @@ When a finding passes the 7-Question Gate but feels borderline, involves complex
 
 # PHASE 5: REPORT
 
-## Canonical Report Format
+## Canonical Defensive-Proof Report Format
 
-Every report MUST follow this exact structure. No exceptions.
+Every report MUST follow this exact structure to preempt triager rejection. See also `references/report-formatting.md`.
 
 ```
 # <Target> Vulnerability Report
-## <Descriptive Vulnerability Name>
-**Severity:** <Critical | High | Medium | Low>
-**Vulnerability Type:** <Primary type> / <Secondary type if applicable>
-**Affected Component:** <Component name> (`<path or endpoint>`)
----
-## Summary
-<3–5 sentences. Covers: what the vulnerability is, where it lives, how it is triggered, and what an attacker gains. No hedging. Present tense.>
+## <Descriptive, Non-Overclaimed Vulnerability Name>
 
 ---
+
+## Scope & Engagement Gate
+- **Engagement Context:** <BBP | VDP | Direct Vendor Disclosure | Internal Red Team / Pentest>
+- **Target Asset:** <Exact domain, IP, repo, contract, or binary>
+- **In Scope:** <Yes / N/A (Independent Research)>
+- **Explicit Exclusions:** <Check program/vendor policy for excluded assets or classes; None if self-hosted/pentest>
+- **Governing Rule / Policy:** <Quote program policy clause, security advisory terms, or Audit Rules of Engagement>
+- **Impact & Boundary Threshold:** <Demonstrated security boundary crossed or business risk proven>
+- **Evidence Supporting Eligibility:** <Concrete demonstrated observations proving impact>
+
+**Severity:** <Critical | High | Medium | Low>
+**Vulnerability Type:** <Primary CWE / Class>
+**Affected Component:** <Component / Endpoint / Daemon Listener> (`<path/port/URL>`)
+---
+
+## Summary
+<3–5 sentences. Covers: what the vulnerability is, where it lives, how it is triggered, and what an attacker gains. Explicitly state what is NOT claimed if scope/severity is sensitive. No hedging. Present tense.>
+
+---
+
+## Control Plane vs Unauthenticated Listener Architecture (Path A vs Path B)
+- **Path A (Legitimate Intended Flow):** Requires valid authentication credentials (e.g. Bearer token, API key, OAuth state).
+- **Path B (Unauthorized Flow Demonstrated):** Accepts equivalent operations directly without presenting any credential or authorization token.
+- **Security Boundary Crossed:** <Explicit description of the authorization barrier bypassed>
+
+---
+
+## Absent Credential Evidence Grid
+| Credential / Artifact | Present in Attack Request? | Verification Evidence |
+|-----------------------|---------------------------|-----------------------|
+| Authorization Header  | ❌ No | HEADERS frame contains only standard HTTP pseudo-headers |
+| Bearer / API Token    | ❌ No | `/proc/self/environ` contains no TOKEN/KEY/SECRET variables |
+| Session Cookie        | ❌ No | No Cookie header; cookie jar empty |
+| Session File          | ❌ No | No token files in local filesystem or shared run directories |
+| mTLS Certificate      | ❌ No | Connection opened over standard unauthenticated cleartext TCP / TLS |
+| Capability Token      | ❌ No | No capability payload or signed request headers |
+
+---
+
+## Demonstrated vs. Inferred Audit Matrix
+| Claim | Verification Status | Evidence / Reasoning |
+|-------|--------------------|----------------------|
+| <Target accepts unauthenticated request> | Demonstrated | <Executed request succeeded with zero headers> |
+| <Execution context equals SDK capability> | Demonstrated | <Executed `id` returning same UID/GID as SDK> |
+| <Guest isolation boundary crossed> | Demonstrated / Inferred | <Exact boundary verification> |
+| <Host escape / system takeover> | Unproven | <Explicitly NOT claimed unless directly executed> |
+
+---
+
 ## Root Cause
 ### 1. <Root cause label>
-- <Tight bullet — one clause each>
+- <Tight bullet — one clause each, referencing exact code file / line / port>
 - <No prose paragraphs>
 
 ---
-## Attack Flow
-1. <One-line step — actor + action>
-2. <One-line step>
+
+## Steps to Reproduce
+1. <Step 1: Context / setup>
+2. <Step 2: Copy-pasteable curl or script>
+3. <Step 3: Execute and observe response>
+
+**Expected (if secure):** <What secure behavior / auth check should happen>
+**Actual:** <What the vulnerable endpoint does>
 
 ---
+
 ## Proof of Concept (PoC)
 ### Step 1: <Short action label>
 <sentence describing what this step demonstrates.>
 [Screenshot or code block]
 
 ---
+
 ## Security Impact
-An attacker with <access level> can:
-- <Concrete impact bullet>
-- <Concrete impact bullet>
+- **Demonstrated Capability:** An attacker with <access level> can <exact action> without credentials.
+- **Program Policy Threshold:** Meets program policy requirement by demonstrating <policy eligibility evidence>.
 
 ---
-## Realistic Attack Chain
-1. <Step>
-2. <Final impact>
+
+## Recommended Fix
+1. <Actionable fix step 1 — e.g., enforce authentication on listener or bind to isolated interface>
+2. <Actionable fix step 2>
 ```
 
 ### Format Rules (non-negotiable)

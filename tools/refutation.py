@@ -110,7 +110,7 @@ class RefutationRecord:
 # ---------------------------------------------------------------------------
 
 def build_adversarial_prompt(finding: Dict, gate: str = "all") -> str:
-    """Construct the adversarial prompt for a specific gate.
+    """Construct the adversarial Red Team prompt across the 10 Red Team Attack Questions.
 
     The prompt is designed to be adversarial — the model wins if it kills the finding.
     """
@@ -118,23 +118,35 @@ def build_adversarial_prompt(finding: Dict, gate: str = "all") -> str:
 
     gate_prompts = {
         "refutation": """
-GATE 1 — REFUTATION
+GATE 1 — RED TEAM ADVERSARIAL CHALLENGE (10 ATTACK QUESTIONS)
 
-Your task: Find a concrete guard, check, or constraint that kills this attack.
-You win if you find a specific line of code, a framework guarantee, a config option,
-or a runtime check that blocks the claimed step.
+Your task: Attack this finding relentlessly. You win if you kill this finding.
+Evaluate the finding strictly against the 10 Red Team Attack Questions:
 
-Rules:
-- "Concrete refutation" = you can quote the exact guard and trace how it blocks the attack.
-  → If you find this, the finding is KILLED.
-- "Speculative refutation" = "probably wouldn't happen", "likely intended", "seems unlikely".
-  → This does NOT kill the finding. The finding CLEARS this gate.
-- If you can find NO guard at all, the finding CLEARS this gate.
+1. Scope: Is the exact asset/function in scope?
+2. Policy: Is this vulnerability class explicitly excluded?
+3. Precondition: What does the attacker actually need?
+4. Authentication: What credential/authorization is supposed to exist?
+5. Path A: What is the legitimate intended flow?
+6. Path B: What unauthorized flow was demonstrated?
+7. Boundary: What security boundary is crossed?
+8. Impact: What concrete capability does the attacker gain?
+9. Alternative explanation: What is the strongest reasonable triager rebuttal?
+10. Evidence: What observation defeats that rebuttal?
+
+DEMONSTRATED VS INFERRED CLASSIFICATION:
+Classify every claim as:
+- Demonstrated (verified directly via executed PoC)
+- Inferred (suggested by code/arch but unexecuted)
+- Unproven (speculative)
+
+THE RED TEAM RULE:
+If the finding cannot survive the strongest plausible triager objection, output KILLED or DEMOTED.
 
 Respond with:
-1. KILLED: <exact guard location and trace> — OR —
-2. CLEARED: <explanation of why no concrete guard exists> — OR —
-3. UNCERTAIN: <what additional information would resolve this>
+1. KILLED: <strongest triager rebuttal + missing evidence> — OR —
+2. CLEARED: <demonstrated evidence defeating all 10 questions> — OR —
+3. DEMOTED: <claim is inferred/unproven — demote to OPEN LEAD>
 """,
 
         "reachability": """
