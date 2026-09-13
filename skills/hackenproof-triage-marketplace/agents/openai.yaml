@@ -1,0 +1,4 @@
+interface:
+  display_name: "HackenProof Triage"
+  short_description: "Triage bug bounty reports consistently"
+  default_prompt: "Use $hackenproof-triage-marketplace to triage this report and propose state, severity, labels, and responder comment."
