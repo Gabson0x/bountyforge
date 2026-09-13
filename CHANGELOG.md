@@ -1,6 +1,34 @@
 # Changelog
 
-## v3.4.0 (2026-08-21)
+## v4.0.0 (2026-09-13)
+
+### Added
+- **17 Skills Bundled** (`skills/`): All external skills copied into repo for self-contained distribution. Includes bb-methodology, bug-bounty, code-sleuth, fizz, godmod, hackenproof-triage-marketplace, meme-coin-audit, pashov (solidity-auditor, x-ray, fizz, fizz-sync, fizz-convert), report-writing, security-arsenal, smart-contract-audit, triage-validation, web2-recon, web2-vuln-classes, web3 (11 sub-skills), web3-audit.
+- **SKILL CHAIN Reference Table** (`SKILL.md`): Local path references with trigger conditions for all 17 bundled skills.
+- **9 New Modes** (`SKILL.md`): `--web3`, `--fuzz`, `--multi-chain`, `--xray`, `--solidity-audit`, `--meme`, `--storage`, `--hackenproof`, `--expert`.
+- **Multi-Chain Support** (`SKILL.md`): 7 blockchain platforms (EVM, Solana, TON, Sui, Cosmos, Near, Cardano) with three-layer reading order and protocol-specific audit tricks.
+- **Web3 Grep Arsenal** (`SKILL.md`): 3-tier copy-paste grep blocks for first 30 minutes of any new Solidity target.
+- **10 Attacker Questions** (`SKILL.md`): For every external smart contract function.
+- **Godmod Expert Mode** (`SKILL.md`): 4 simultaneous personas (Security Researcher, Pentester, Senior Dev, Cracked Generalist).
+- **Fuzz Suite Generation** (`SKILL.md`): 11-step pipeline with 5 specialized invariant discovery agents (Echidna/Medusa).
+- **X-Ray Pre-Audit Report** (`SKILL.md`): Enhanced threat model with git-weighted attack surfaces, composability dependency mapping.
+- **Meme Coin / Token Security Audit** (`SKILL.md`): 8 token-specific bug classes, Solana SPL checks, Token-2022 extension risks, bonding curve manipulation.
+- **EVM Storage-Safety Analysis** (`SKILL.md`): Lost writes, proxy collisions, attacker-influenced storage slots, upgrade layout hazards.
+- **HackenProof Triage Workflow** (`SKILL.md`): Mandatory tool sequence, 4 pre-validation gates, decision states.
+- **Immunefi Web3 Triage** (`SKILL.md`): 20 real paid bounty patterns dissected, Immunefi report format requirements.
+- **MFA Bypass** (`SKILL.md`): 7 patterns with testing checklist.
+- **SAML Attacks** (`SKILL.md`): XML Signature Wrapping, comment injection, signature stripping.
+- **XXE, Deserialization, Host Header Injection, Custom Header Injection, WebSocket Attacks** (`SKILL.md`): Complete detection payloads and testing checklists.
+- **Agentic AI Attack Vectors** (`SKILL.md`): ASI01-ASI10 in practice (chatbot IDOR, prompt injection, indirect injection, ASCII smuggling, exfil channels, RCE via code tools).
+- **Release Notes** (`RELEASE.md`): Structured release notes for v4.0.0.
+
+### Changed
+- Orchestration Turn 2 updated to load skills from local `skills/` directory.
+- VERSION bumped from 3.3.5 to 4.0.0.
+
+---
+
+## v3.4.1 (2026-08-17)
 
 ### Added
 - **Adversarial Refutation Engine Upgrade** (`tools/refutation.py`): Automated refutation engine now evaluates findings against the 10 Red Team Attack Questions and enforces `Demonstrated` vs `Inferred` classification before clearing findings.
