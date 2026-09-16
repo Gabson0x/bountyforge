@@ -1,5 +1,37 @@
 # Changelog
 
+## v4.1.0 (2026-09-16)
+
+### Changed
+- **SKILL.md slimmed 3.4×** (2,992 → 872 lines, 162KB → 65KB). Doctrine, mode selection, skill chain, orchestration, and hot-path sections stay; deep checklists moved to `references/` and load on demand.
+- **Banner + AUTO-UPDATE SYSTEM retained** — v4.0.0 session-start behavior is unchanged.
+- **Frontmatter description trimmed** (~230 words → 2 sentences). The description is resident in the system prompt every session; trigger coverage is retained.
+- Turn 2 bundle build is now the only place that mandates loading everything; all other loading follows CONTEXT BUDGET rules.
+
+### Added
+- **CONTEXT BUDGET — Load On Demand** section: explicit rules for when references and sub-skills are read.
+- **REFERENCE MAP** table: topic/trigger → exact file to load.
+- **EXTERNAL SKILL PACKS** section: cross-reference to the optional `pentest-skills` pack (github.com/crazyMarky/pentest-skills, Apache-2.0) — `recon-subdomain`, `recon-port-scan`, `recon-fingerprint`, `recon-dir-scan`, `exploit-sqli`, `exploit-xss`, `exploit-lfi`, `exploit-file-download`, `pentest-report`, `results-storage`. Referenced by skill name (public-safe, no absolute paths); BountyForge gates and report format take precedence.
+- **9 new reference files** extracted verbatim from SKILL.md:
+  - `references/web3-quickstart.md` — multi-chain reading order + 3-tier grep arsenal
+  - `references/mode-modules.md` — godmod / fuzz / x-ray / meme / storage
+  - `references/ab-chains.md` — H100 proven A→B chains
+  - `references/recon-and-leaks.md` — Phase 1 recon + credential/source leaks
+  - `references/learn.md` — Phase 2 disclosed-report pipeline + threat model
+  - `references/web-hunting-playbooks.md` — all bug-class checklists
+  - `references/validation.md` — SC 5-layer reasoning, 7-Question Gate, triage tracks, CVSS
+  - `references/reporting.md` — report format, formulas, reject lists, target profiles
+  - `references/python-tooling.md` — `tools/` command reference
+
+### Fixed
+- Removed duplicated `skills/pashov/fizz` tree (byte-identical to `skills/fizz`; chain table already pointed at `skills/fizz`).
+
+### Stats
+- 2,297 lines relocated, 0 lines of content lost (verified by line-set diff against the old SKILL.md).
+- `bountyforge.skill` regenerated from the new SKILL.md.
+
+---
+
 ## v4.0.0 (2026-09-13)
 
 ### Added

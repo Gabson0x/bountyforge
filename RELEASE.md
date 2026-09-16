@@ -1,5 +1,39 @@
 # Release Notes
 
+## v4.1.0 — Slim Orchestrator, On-Demand Loading (2026-09-16)
+
+**Context-budget release.** The SKILL.md is now 872 lines (was 2,992) without dropping content — deep material moved verbatim into 9 new `references/` files and loads only when its trigger fires.
+
+### What Changed
+
+- **SKILL.md 162KB → 65KB.** Kept inline: banner, auto-update, doctrine (only-question / two-question rule / lead ledger / pillars / wild mode / flexible PoC), mode selection, skill chain, orchestration turns, auth-aware hunting, A→B signal method, top 1% mindset, note-taking.
+- **Added CONTEXT BUDGET + REFERENCE MAP** so an agent loads only what the mode needs instead of the whole encyclopedia.
+- **Added EXTERNAL SKILL PACKS** — optional `pentest-skills` pack (crazyMarky) wired by skill name: `recon-*`, `exploit-*`, `pentest-report`, `results-storage`. Public-safe (no absolute paths); BountyForge gates/report format win on conflict.
+- **Trimmed frontmatter description** to 2 sentences — it is always resident in the system prompt.
+- **Removed duplicate `skills/pashov/fizz`** tree (identical to `skills/fizz`).
+- **Banner and AUTO-UPDATE SYSTEM are unchanged.**
+
+### New Reference Files
+
+| File | Contents |
+|---|---|
+| `references/web3-quickstart.md` | Multi-chain order + grep arsenal |
+| `references/mode-modules.md` | Godmod / fuzz / x-ray / meme / storage |
+| `references/ab-chains.md` | H100 proven A→B chains |
+| `references/recon-and-leaks.md` | Phase 1 recon + credential/source leaks |
+| `references/learn.md` | Phase 2 disclosed reports + threat model |
+| `references/web-hunting-playbooks.md` | All bug-class checklists |
+| `references/validation.md` | 5-layer reasoning, 7-Question Gate, triage, CVSS |
+| `references/reporting.md` | Report format, formulas, reject lists |
+| `references/python-tooling.md` | `tools/` command reference |
+
+### Stats
+
+- 2,992 → 872 lines in SKILL.md; 2,297 lines relocated; 0 lines lost (verified).
+- `bountyforge.skill` regenerated.
+
+---
+
 ## v4.0.0 — All Skills Wired (2026-09-13)
 
 **Major release.** BountyForge is now a self-contained, fully-wired autonomous security auditor with 17 bundled skills, 9 new modes, and 59,000+ lines of integrated domain knowledge.
