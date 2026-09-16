@@ -7,6 +7,8 @@ description: HackenProof bug bounty triage workflow for Claude Code plugin marke
 
 Execute consistent, evidence-based triage for HackenProof bug bounty reports.
 
+See also: [[Triage]], [[Report Writing]], [[Lead Ledger]], [[Vuln Classes]]
+
 ## Workflow
 
 1. Apply global HackenProof classification baseline from `references/hackenproof-global-policy.md`.

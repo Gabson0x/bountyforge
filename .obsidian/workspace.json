@@ -1,0 +1,201 @@
+{
+  "main": {
+    "id": "da4873338bfa78e1",
+    "type": "split",
+    "children": [
+      {
+        "id": "9e576296bca048a8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "397a5ad484dd783f",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "3533cb64af9da0b4",
+    "type": "split",
+    "children": [
+      {
+        "id": "07df3ddedf29a9fc",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "cedfed63cd3c4f50",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "1903c2c0344dfc67",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "7cbd4de27d9c963a",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "0859ec6f926460b6",
+    "type": "split",
+    "children": [
+      {
+        "id": "581af03b002bd253",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "cd6142732d8c2bc2",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "d3a0c6a7aa3196a0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "578c8a0f49bee0cc",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "7f5446fea6143e8e",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "5d683638abaf512c",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "397a5ad484dd783f",
+  "lastOpenFiles": [
+    "skills/pashov/solidity-auditor/references/hacking-agents/boundary-agent.md",
+    "skills/smart-contract-audit/reference/solidity/fv-sol-9-unbounded-loops/fv-sol-9-c1-dynamic-array.md",
+    "skills/pashov/solidity-auditor/references/hacking-agents/periphery-agent.md",
+    "state/sessions/paydo.com/final-report.md",
+    "wiki/Index.md",
+    "skills/smart-contract-audit/reference/anchor/fv-anc-5-cross-program-invocation-cpi/fv-anc-5-cl2-cpi-without-signer-seeds.md",
+    "wiki/Wild Mode.md",
+    "wiki/Report Writing.md",
+    "wiki/Triage.md",
+    "wiki/Vuln Classes.md",
+    "wiki/Lead Ledger.md",
+    "wiki/A→B Chains.md",
+    "wiki/Trust Map.md",
+    "wiki"
+  ]
+}

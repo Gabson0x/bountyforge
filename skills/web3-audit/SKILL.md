@@ -7,6 +7,8 @@ description: Smart contract security audit — 10 DeFi bug classes (accounting d
 
 10 bug classes. Pre-dive kill signals. Foundry PoC template. Real paid examples.
 
+See also: [[Smart Contract Audit]], [[Trust Map]], [[Methodology]], [[A→B Chains]], [[Web3 Bug Classes]], [[Web3 Grep Arsenal]], [[Web3 POC Foundry]], [[Web3 Triage Report]], [[Web3 Hunt Foundation]], [[Code Sleuth]], [[Fizz]], [[Pashov Solidity Auditor]], [[Pashov X-Ray]], [[Lead Ledger]], [[Triage]], [[Report Writing]]
+
 ---
 
 ## PRE-DIVE KILL SIGNALS (check BEFORE any code review)

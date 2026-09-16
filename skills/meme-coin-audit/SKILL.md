@@ -5,7 +5,9 @@ description: Meme coin and token security audit — rug pull detection (honeypot
 
 # MEME COIN & TOKEN SECURITY AUDIT
 
-Fast-kill rug pull detection and deep token security analysis for EVM and Solana meme coins.
+Fast-kill rug pull detection and deep token security analysis.
+
+See also: [[Web3 Audit]], [[Smart Contract Audit]], [[Trust Map]], [[Methodology]]
 
 ---
 

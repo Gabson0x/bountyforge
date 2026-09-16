@@ -5,6 +5,10 @@ description: Bug triage validation system, Immunefi report format, and 20 real p
 
 # TRIAGE, REPORT WRITING & REAL EXAMPLES
 
+7-Question Gate, Immunefi format, 20 real paid bounty examples.
+
+See also: [[Triage]], [[Report Writing]], [[Lead Ledger]], [[A→B Chains]], [[Vuln Classes]]
+
 ---
 
 ## PART 1: TRIAGE

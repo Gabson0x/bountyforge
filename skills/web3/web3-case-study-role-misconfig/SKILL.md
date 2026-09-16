@@ -5,8 +5,10 @@ Contains: architecture walkthrough, all bug class verdicts, 2 findings (DISTRIBU
 ---
 
 # CASE STUDY: ROLE MISCONFIGURATION IN A YIELD AGGREGATOR
-> Bug Class: Access Control | Severity: Critical/Medium | Payout Range: $10K–$50K
-> This file shows how to apply the full 10-class methodology to a real yield aggregator target.
+
+Bug Class: Access Control | Severity: Critical/Medium | Payout Range: $10K–$50K
+
+See also: [[Web3 Audit]], [[Web3 Bug Classes]], [[Methodology]], [[Trust Map]], [[A→B Chains]]
 
 ---
 

@@ -9,6 +9,8 @@ One wrong answer = STOP. Kill it. Move on.
 
 > "N/A hurts your validity ratio. Informative is neutral. Only submit what passes all 7 questions."
 
+See also: [[Triage]], [[Lead Ledger]], [[Report Writing]], [[Vuln Classes]]
+
 ---
 
 ## THE 7-QUESTION GATE

@@ -5,9 +5,10 @@ Contains: CAI Framework, Shannon AI pentester, LuaN1ao dual-graph agent, SmartGu
 ---
 
 # AI TOOLS ARSENAL
-> AI-powered automation for every phase of Web3 bug hunting.
-> Replaces: 28-cai-framework, 29-claude-skills-security, 30-shannon-ai-pentester,
->           31-luan1ao-agent, 32-ai-generated-code-hunting, 33-smartguard-agent
+
+AI-powered automation for every phase of Web3 bug hunting.
+
+See also: [[Web3 Audit]], [[Methodology]], [[Web3 Hunt Foundation]]
 
 ---
 

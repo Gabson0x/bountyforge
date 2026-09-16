@@ -7,6 +7,8 @@ description: Security payloads, bypass tables, wordlists, gf pattern names, alwa
 
 Payloads, bypass tables, wordlists, temp email setup, and submission rules.
 
+See also: [[Vuln Classes]], [[Web2 Recon]], [[Triage]]
+
 ---
 
 ## TEMP EMAIL SETUP (For Multi-Account Testing)

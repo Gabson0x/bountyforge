@@ -5,7 +5,9 @@ description: External research synthesis from Trail of Bits, SlowMist, ConsenSys
 
 # METHODOLOGY & RESEARCH SYNTHESIS
 
-Sources: Trail of Bits, SlowMist, ConsenSys, Immunefi Web3 Security Library, Cyfrin Audit Course, Lido Audits Library, Nethermind PublicAuditReports.
+External research from Trail of Bits, SlowMist, ConsenSys, Immunefi, Cyfrin.
+
+See also: [[Web3 Audit]], [[Methodology]], [[Smart Contract Audit]], [[Web3 Bug Classes]]
 
 ---
 

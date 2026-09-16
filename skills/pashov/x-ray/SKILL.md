@@ -3,9 +3,11 @@ name: x-ray
 description: "Generates an x-ray.md pre-audit report covering overview, enhanced threat model (protocol-type profiling, git-weighted attack surfaces, temporal risk analysis, composability dependency mapping), invariants, integrations, docs quality, test analysis, and developer/git history. Triggers on 'x-ray', 'audit readiness', 'readiness report', 'pre-audit report', 'prep this protocol', 'protocol prep', 'summarize this protocol'."
 ---
 
-# X-Ray
+# X-Ray — Pre-Audit Report
 
-Generate an `x-ray/` folder at the project root containing all output files. Pipeline: 3 steps, always sequential.
+Generate an x-ray pre-audit report with threat model and invariants.
+
+See also: [[Web3 Audit]], [[Smart Contract Audit]], [[Methodology]], [[Trust Map]]
 
 `$SKILL_DIR` = the directory containing this SKILL.md file. Resolve it from the path you loaded this skill from (e.g. if this file is at `/path/to/x-ray/SKILL.md`, then `$SKILL_DIR` = `/path/to/x-ray`).
 

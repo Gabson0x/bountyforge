@@ -7,6 +7,8 @@ description: Bug bounty report writing for H1/Bugcrowd/Intigriti/Immunefi — re
 
 Impact-first. Human tone. No theoretical language. Triagers are people.
 
+See also: [[Report Writing]], [[Triage]], [[A→B Chains]], [[Lead Ledger]]
+
 ---
 
 ## THE MOST IMPORTANT RULE

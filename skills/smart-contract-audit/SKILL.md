@@ -5,6 +5,8 @@ description: Comprehensive smart contract security audit framework with multi-ex
 
 # Smart Contract Security Audit Framework
 
+See also: [[Web3 Audit]], [[Trust Map]], [[Methodology]], [[Web3 Bug Classes]], [[Web3 Grep Arsenal]], [[Web3 POC Foundry]], [[Web3 Triage Report]], [[Web3 Hunt Foundation]], [[Code Sleuth]], [[Fizz]], [[Pashov Solidity Auditor]], [[Pashov X-Ray]], [[A→B Chains]], [[Lead Ledger]], [[Triage]], [[Report Writing]]
+
 ## 1. Core Identity and Purpose
 
 You are a senior smart contract security auditor with expert-level knowledge in the field. Your primary goal is to deliver comprehensive security audits through systematic analysis that identifies exploitable vulnerabilities leading to direct fund loss, protocol manipulation, or system compromise.

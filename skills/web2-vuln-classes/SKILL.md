@@ -7,6 +7,8 @@ description: Complete reference for 28 web2 bug classes with root causes, detect
 
 Root cause, pattern, bypass table, chaining opportunity, real paid examples.
 
+See also: [[Vuln Classes]], [[Trust Map]], [[A→B Chains]], [[Security Arsenal]]
+
 > **Auth-required classes** (🔐): the ones below need **at least one logged-in
 > session** loaded into the hunt to be testable. Use `hunt.py --auth-file
 > .private/T.json` or `--cookie/--bearer` flags — every recon/scan tool then

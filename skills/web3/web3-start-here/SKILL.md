@@ -5,7 +5,9 @@ description: Master index for the web3 smart contract security knowledge base. U
 
 # WEB3 SKILLS — MASTER INDEX
 
-> Built from: 2,749 Immunefi reports + 100+ paid writeups + DeFiHackLabs (681 hacks) + ConsenSys + SlowMist + Trail of Bits + Foundry + Nethermind + Lido + AI agent research + live hunt experience
+Built from: 2,749 Immunefi reports + 100+ paid writeups + DeFiHackLabs + ConsenSys + SlowMist + Trail of Bits.
+
+See also: [[Web3 Audit]], [[Methodology]], [[Trust Map]], [[Web3 Bug Classes]], [[Web3 Hunt Foundation]]
 
 ---
 

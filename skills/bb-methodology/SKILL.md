@@ -1,417 +1,113 @@
 ---
 name: bb-methodology
-description: Use at the START of any bug bounty hunting session, when switching targets, or when feeling lost about what to do next. Master orchestrator that combines the 5-phase non-linear hunting workflow with the critical thinking framework (developer psychology, anomaly detection, What-If experiments). Routes to all other skills based on current hunting phase. Also use when asking "what should I do next" or "where am I in the process."
+description: The "3rd eye" for pentesting — reminds agent to understand before assuming, validate before reporting.
 ---
 
-# Bug Bounty Methodology: Workflow + Mindset
+# 3rd Eye — Pentesting Reminder
 
-Master orchestrator for hunting sessions. Combines the 5-phase non-linear workflow with the critical thinking framework that separates top 1% hunters from the rest.
+You are a pentesting reminder system. Your job is to catch mistakes.
 
----
-
-## PART 1: MINDSET (How to Think)
-
-### Core Principle
-
-Hunting is not "find a bug" -- it is "prove an attack scenario." Think like an attacker with a specific goal, not a scanner looking for patterns.
-
-### Daily Discipline: Define, Select, Execute
-
-Before touching any tool:
-
-1. **Define**: "Today I target [feature/domain] to achieve [CIA impact]"
-2. **Select**: Choose 1-2 vuln classes (IDOR, Race Condition, etc.)
-3. **Execute**: Focus ONLY on selected techniques. No wandering.
-
-### 5 Ultimate Goals (Pick One Per Session)
-
-1. **Confidentiality** -- steal data the attacker shouldn't see
-2. **Integrity** -- modify data the attacker shouldn't change
-3. **Availability** -- disrupt service (app-level DoS only)
-4. **Account Takeover** -- control another user's account
-5. **RCE** -- execute commands on the server
-
-### 4 Thinking Domains
-
-#### 1. Critical Thinking (deep analysis)
-
-**Question trust boundaries:**
-- Frontend control disabled? Send request directly via proxy
-- `user_role=user` cookie? Change to `admin`
-- `price=1000` in POST? Change to `1`
-- `<script>` blocked? Try `<img onerror=...>`
-
-**Reverse-engineer developer psychology:**
-- Feature A has auth checks -> Similar feature B (newly added) probably doesn't
-- Complex flows (coupon + points + refund) -> Edge cases have bugs
-- `/api/v2/user` exists -> Does `/api/v1/user` still work with weaker auth?
-
-**What-If experiments:**
-- Skip checkout -> hit `/checkout/success` directly
-- Skip 2FA -> navigate to `/dashboard`
-- Send coupon request 10x simultaneously -> Race condition?
-- Replace `guid=f8a2...` with `id=100` on sibling endpoint -> IDOR?
-
-#### 2. Multi-Perspective (multiple angles)
-
-| Perspective | What to check |
-|------------|---------------|
-| Horizontal (same role) | User A's token + User B's ID -> IDOR |
-| Vertical (different role) | Regular user -> `/admin/deleteUser` |
-| Data flow (proxy view) | Hidden params in JSON: `debug=false`, `discount_rate` |
-| Time/State | Race conditions, post-delete session reuse |
-| Client environment | Mobile UA -> legacy API with weaker auth |
-| Business impact | "What's the $ damage if this breaks?" |
-
-#### 3. Tactical Thinking (pattern detection)
-
-- **Naming anomaly**: `userId` everywhere but suddenly `user_id` -> different dev, weaker security
-- **Error diff**: Same 403 but different JSON structure -> different backend systems
-- **Environment diff**: Prod vs Dev/Staging -> debug headers, CSP disabled
-- **Version diff**: JS file before/after update -> new endpoints, removed params
-- **Supply chain**: Check framework/library versions for known CVEs
-- **Third-party integration**: Stripe/Auth0/Intercom -> webhook signature missing?
-
-#### 4. Strategic Thinking (big picture)
-
-- **Asymmetry**: Defender must patch ALL holes. You only need ONE.
-- **Intuition engineering**: Log why something "feels wrong." Verify later. Update mental DB.
-- **Unknown management**: Can't understand something? Add to "investigate later" list. Just-in-Time Learning.
-
-### Amateur vs Pro: 7-Phase Comparison
-
-| Phase | Amateur | Pro |
-|-------|---------|-----|
-| Recon | Main domain only | Shadow IT, dev environments, all assets |
-| Discovery | Look for errors | Look for design contradictions, business logic flaws |
-| Exploit | Give up when blocked | Build filter-bypass payloads |
-| Escalation | Report the phenomenon only | Chain to real harm (session steal, ATO) |
-| Feasibility | Include unrealistic conditions | Minimize attack prerequisites |
-| Reporting | State facts only | Quantify business risk |
-| Retest | Check if old PoC fails | Analyze fix method, find incomplete patches |
-
-### Two Approach Routes
-
-- **Route A (Feature-based)**: "This feature is complex" -> deep-dive its input handling -> find vuln
-- **Route B (Vuln-based)**: "I want IDOR" -> find endpoints with sequential IDs -> test access control
-
-### Anti-Patterns (Stop Doing These)
-
-- **Program hopping**: Stick with one target minimum 2 weeks / 30 hours
-- **Tool-only hunting**: Automation finds duplicates. Manual testing finds unique bugs.
-- **Rabbit hole**: Max 45 min per parameter. Set a timer. If stuck, sleep on it.
-- **No goal**: "Just looking around" = wasted time. Always Define first.
+See also: [[BountyForge]], [[Methodology]], [[Triage]], [[Trust Map]], [[Vuln Classes]], [[A→B Chains]], [[Lead Ledger]], [[Report Writing]], [[Wild Mode]]
 
 ---
 
-## PART 2: WORKFLOW (What to Do)
+## BEFORE YOU START
 
-### The 5-Phase Non-Linear Flow
-
-```
-+-------------------------------------------------+
-|                                                 |
-|  +----------+    +----------+    +----------+   |
-|  | 1. RECON |---+| 2. MAP   |---+| 3. FIND  |  |
-|  +----------+    +-----+----+    +-----+-----+  |
-|       ^                |               |         |
-|       |                v               v         |
-|       |          +----------+    +----------+    |
-|       +----------| 4. PROVE |---+| 5. REPORT|   |
-|                  +----------+    +----------+    |
-|                                                  |
-|  Non-linear: stuck at any phase -> go back       |
-|  New API found at phase 3 -> return to phase 2   |
-|  WAF blocks at phase 4 -> origin IP from phase 1 |
-+-------------------------------------------------+
-```
-
-**THIS IS NOT LINEAR.** Move freely between phases. When stuck, return to a previous phase.
-
-### Phase 0: SESSION START (Every Time)
-
-**Before touching any tool, answer these:**
-
-1. **Define**: "Today I target [feature/domain] to achieve [C/I/A/ATO/RCE]"
-2. **Select**: Choose 1-2 vuln classes (IDOR, XSS, SSRF, etc.)
-3. **Execute**: Focus ONLY on selected techniques
-4. **Identity**: Anonymous or authenticated? If the bugs you're hunting need a
-   session (IDOR, BOLA, privilege escalation, auth bypass, mass-assignment),
-   load auth **once** at session start — see `docs/auth-sessions.md`. Then
-   every downstream tool (httpx, katana, ffuf, nuclei, dalfox, PoC verifiers)
-   sends those headers automatically and audit log entries are stamped with
-   a stable `session_id` hash.
-5. **Temp Emails**: Create 2-3 temp emails BEFORE hunting (multi-account testing is essential for IDOR, privilege escalation, business logic)
-
-### Temp Email Setup (Every Session)
-
-```bash
-# Mail.tm API (free, no registration)
-create_temp_email() {
-  DOMAIN=$(curl -s https://api.mail.tm/domains | jq -r '.[0].domain')
-  EMAIL="hunter_$(date +%s)@${DOMAIN}"
-  PASSWORD="TempPass123!"
-  curl -s -X POST https://api.mail.tm/accounts \
-    -H "Content-Type: application/json" \
-    -d "{\"address\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" | jq .
-}
-
-# Create accounts for testing
-for i in 1 2 3; do create_temp_email; done
-```
-
-### Pre-Hunt Research Checklist (15 min)
-
-```
-□ Program page — all in-scope assets, rules, safe harbor
-□ Last 10 disclosed reports — what got paid, what didn't
-□ CHANGELOG — what changed in last 30 days
-□ GitHub — public repos, code patterns, developer habits
-□ Tech stack — framework, database, auth system, cloud provider
-□ Developer profiling — who builds auth/API features?
-□ Status page — uptime history reveals architecture
-□ Company blog — engineering posts reveal stack choices
-```
-
-**Route selection -- Wide or Deep?**
-
-| Signal | Wide (recon sweep) | Deep (focused testing) |
-|--------|-------------------|----------------------|
-| New program, first day | X | |
-| Wildcard scope `*.target.com` | X | |
-| Main webapp, been here >3 days | | X |
-| Scope update (new domain added) | X | |
-| Found interesting subdomain | | X |
-| Hunting IDOR / BOLA / auth bugs | | X (auth-aware) |
-
-### Phase 1: RECON
-
-**Goal**: Maximize attack surface. Find what others missed.
-
-**Wide approach** (initial sweep):
-```
-Subdomain enum -> DNS resolution -> HTTP probing -> Port scan -> Tech detect
-```
-
-**Deep approach** (targeted):
-```
-Google Dorks -> JS file download -> Hidden param discovery -> API mapping
-```
-
-**Deeper research** (before hunting):
-```
-Disclosed reports -> Tech stack analysis -> Developer profiling -> What Changed method
-```
-
-| What you find | Next action |
-|--------------|-------------|
-| Live subdomains with tech stack | Phase 2 (Mapping) |
-| Known software (WordPress, Jira) | Check CVEs + defaults immediately |
-| Cloud resources (S3, Firebase) | Test permissions (read/write/list) |
-| Nothing after 5 min on a host | Skip, try next host (5-minute rule) |
-| Public GitHub repos | Grep for secrets, code patterns, dev habits |
-| Disclosed reports | Study anti-patterns, grep target for same |
-
-**Command**: `/recon target.com`
-
-### Phase 2: MAPPING & ANALYSIS
-
-**Goal**: Understand the app like its developer does.
-
-**Checklist:**
-- [ ] Map all endpoints (Burp/Caido sitemap + JS analysis)
-- [ ] Identify auth model (cookie, JWT, OAuth, SAML?)
-- [ ] Find business-critical flows (payment, registration, password reset, data export)
-- [ ] Download and analyze JS files for hidden routes, secrets, logic
-- [ ] Identify roles and permissions (user, admin, API keys)
-- [ ] Note "weird" behaviors (anomalies in naming, errors, timing)
-- [ ] Check API versioning (v1, v2, beta, internal)
-- [ ] Map cloud infrastructure (S3 buckets, Firebase, metadata endpoints)
-- [ ] Identify tech stack and framework-specific attack surfaces
-- [ ] Find hidden parameters (arjun, paramspider, manual testing)
-
-| What you find | Next action |
-|--------------|-------------|
-| JS files with interesting code | Taint analysis (Sink -> Source) |
-| OAuth/SAML authentication | OAuth/SAML checklist |
-| API with ID parameters | Phase 3, target IDOR |
-| Complex business logic (payment, coupon) | Phase 3, target BizLogic |
-| postMessage listeners | DOM analysis, postMessage-tracker |
-| API versioning (v1, v2) | Test older versions for weaker auth |
-| Hidden parameters | Test for debug/admin flags |
-| Cloud resources | Test permissions immediately |
-| Framework-specific paths | Check /admin, /debug, /actuator |
-
-### Phase 3: VULNERABILITY DISCOVERY
-
-**Goal**: Find the bug. Use Error-based first, then Blind-based.
-
-**Decision flow based on what you're testing:**
-
-```
-What input are you testing?
-+-- ID parameter (user_id, order_id)
-|   -> IDOR checklist
-+-- Search/filter/sort field
-|   -> SQLi, NoSQLi probing
-+-- URL input / webhook / PDF gen
-|   -> SSRF checklist
-+-- Text field reflected in page
-|   -> XSS (DOM or reflected)
-+-- File upload
-|   -> SVG XSS, web shell, path traversal, XXE
-+-- Price/quantity/coupon
-|   -> Business logic, race conditions
-+-- Login / 2FA / password reset
-|   -> Auth bypass, temp email testing
-+-- Profile update API
-|   -> Mass Assignment
-+-- Template / wiki editor
-|   -> SSTI
-+-- XML input / DOCX upload
-|   -> XXE checklist
-+-- Serialized cookie / data
-|   -> Insecure deserialization
-+-- Host header usage
-|   -> Host header injection
-+-- Custom headers (X-Forwarded-For, etc.)
-|   -> Custom header injection
-+-- WebSocket messages
-|   -> IDOR, injection, CSWSH
-+-- Nothing obvious
-    -> Fuzz with ffuf, try Error-based probing
-```
-
-**Error vs Blind decision:**
-1. Try Error-based first (send `'`, `"`, `{{7*7}}`, `${7*7}`) -- watch for 500 errors, stack traces
-2. No error? Time-based (`SLEEP(10)`, `; sleep 10;`) -- watch response time
-3. No time diff? OOB (`curl attacker.com`, interactsh) -- watch for DNS callback
-4. Still nothing? Boolean (`AND 1=1` vs `AND 1=0`) -- watch content-length diff
-
-| What you find | Next action |
-|--------------|-------------|
-| Low-impact behavior (redirect, self-XSS, cookie injection) | Chain it -- find a connector gadget |
-| Confirmed vuln (XSS, IDOR, SQLi) | Phase 4 (Prove and Escalate) |
-| Blocked by WAF/CSP/403 | Bypass techniques, then retry |
-| Known software vuln (CVE) | 1-day speed workflow |
-| Nothing after 20 min on this endpoint | Rotate (20-minute rule) |
-
-### Phase 4: PROVE & ESCALATE
-
-**Goal**: Prove maximum business impact. Turn Low into Critical.
-
-**Escalation decision:**
-```
-What did you find?
-+-- XSS
-|   +-- Can steal cookie/token? -> Session hijack -> ATO
-|   +-- Cookie is HttpOnly? -> Force email change via XHR -> ATO
-|   +-- Self-XSS only? -> Find CSRF to trigger it
-+-- IDOR
-|   +-- Can read PII? -> Automate scraping, show scale
-|   +-- Can change password/email? -> Direct ATO
-|   +-- UUID only? -> Find UUID leak source, then retry
-+-- SSRF
-|   +-- DNS only? -> DON'T REPORT. Try cloud metadata
-|   +-- Can reach 169.254.169.254? -> Extract keys -> RCE
-|   +-- Internal port scan? -> Find Redis/K8s -> RCE
-+-- SQLi
-|   +-- Error-based? -> Extract data (passwords, tokens)
-|   +-- Can INTO OUTFILE? -> Web shell -> RCE
-|   +-- Blind? -> Boolean/Time extraction
-+-- Open Redirect
-|   +-- OAuth flow? -> Token theft -> ATO
-|   +-- javascript: scheme? -> XSS
-+-- Blocked by defense
-|   -> Bypass (WAF/CSP/proxy/sanitizer/2FA)
-+-- Low-impact, can't escalate alone
-    -> Find connector gadget for chain
-```
-
-**After proving impact, check:**
-- [ ] Can attack work with 0-1 clicks? (minimize prerequisites)
-- [ ] Does it affect all users or specific role?
-- [ ] What's the business $ impact?
-
-### Phase 5: VALIDATE & REPORT
-
-**Goal**: Get paid. Make triager's job easy.
-
-**Pre-report gate:**
-```
-Run /validate (7-Question Gate)
-+-- All 7 pass? -> Write report
-+-- Any fail? -> KILL the finding. Don't waste time.
-+-- Borderline? -> Run /triage for quick go/no-go
-```
-
-**Report:**
-```
-Run /report
-+-- Platform-specific format (H1/Bugcrowd/Intigriti/Immunefi)
-+-- Title: [Bug Class] in [Endpoint] allows [role] to [impact]
-+-- Impact-first summary (sentence 1 = what attacker CAN do)
-+-- Exact HTTP requests in Steps to Reproduce
-+-- Under 600 words
-+-- CVSS 3.1 score that MATCHES actual impact
-```
-
-**After submission:**
-- [ ] While waiting for triage: try to escalate further (A->B signal method)
-- [ ] If fix deployed: re-test for bypass (incomplete patch = new bug)
-- [ ] Record finding with `/remember` for hunt memory
+1. **Read the program page.** All rules. Safe harbor. Scope. What pays.
+2. **Read last 10 disclosed reports.** What got paid? What didn't? Patterns.
+3. **Understand the tech stack.** Framework? Version? Auth model?
+4. **Create temp emails.** You need 2-3 for multi-account testing. See [[Web2 Recon]].
+5. **Define your goal.** "Today I target [X] to achieve [C/I/A/ATO/RCE]"
 
 ---
 
-## PART 3: NAVIGATION & TIMING
+## THE TRUST-FIRST LOOP
 
-### Non-Linear Navigation Quick Reference
+```
+MAP → OBSERVE → MODEL → HYPOTHESIZE → RANK → TEST → INTERPRET
+→ NEW HYPOTHESES → CHAIN → VALIDATE → KILL/ESCALATE/REPORT
+```
 
-| I'm stuck because... | Go to... |
-|----------------------|----------|
-| Can't find any subdomains | Phase 1: Try different recon sources, Google Dorks |
-| Found subdomain but don't know what to test | Phase 2: Map the app, download JS, understand auth |
-| Testing but nothing works | Phase 3: Switch vuln class (20-min rotation rule) |
-| Found a bug but impact is low | Phase 4: Escalation paths or gadget chaining |
-| WAF/CSP/403 blocking my payload | Bypass techniques, then return to current phase |
-| Been stuck for 45 min on one param | STOP. Rabbit hole. Move to next endpoint. |
-| New API endpoint discovered during testing | Return to Phase 2: map it before attacking |
-| Found one bug | A->B signal: same dev made more mistakes. Hunt 20 min for siblings. |
+**Map trust first.** Every bug is a trust violation. See [[Trust Map]].
 
-### 20-Minute Rotation Clock
+**Hypothesize from trust.** "What if this trust is misplaced?" Name the violation.
 
-Every 20 minutes ask yourself: **"Am I making progress?"**
-- Yes -> Continue
-- No -> Rotate to next: endpoint -> subdomain -> vuln class -> target
-- Been on same target 2+ weeks with no findings? -> Consider switching program
+**Rank by information gain.** Test what teaches you most, even if it fails.
 
-### Tool Routing by Phase
+**Test minimally first.** One request, one change. Signal before proof.
 
-| Phase | Tools | Why this order |
-|-------|-------|----------------|
-| Recon: Subdomains | `subfaster` -> `amass` -> `puredns` -> `httpx` | Passive first (no detection) -> resolve DNS -> probe HTTP + tech stack |
-| Recon: URLs | `gau` + `waymore` -> `katana` -> `uro` | Archive (forgotten endpoints) -> active crawl (JS-rendered) -> deduplicate |
-| Recon: JS | `jsluice` + `mantra` + `trufflehog --only-verified` | Extract URLs/secrets -> find API keys -> verify keys actually work |
-| Recon: Ports | `naabu` (wide) -> `rustscan` (deep) | Fast top-1000 sweep -> full 65535 on interesting targets |
-| Recon: Scan | `nuclei -tags cve` -> `nuclei -tags takeover` | Known CVEs first -> then takeover (act immediately) |
-| Mapping: Params | `arjun` + `paramspider` + ParamMiner | Brute-force hidden params + mine archives + cache headers |
-| Mapping: JS code | Download -> `jsluice` -> VS Code/Cursor grep | Extract -> static analysis -> AI-assisted taint analysis |
-| Mapping: Dorks | Manual Google Dorks | Custom per-target queries find what automation misses |
-| Discovery: Fuzz | `ffuf -ac` + `cewl` custom wordlist | Auto-calibrate filtering + target-specific words beat generic lists |
-| Discovery: XSS | `kxss` -> `dalfox` | Filter (which params reflect?) -> scan (only reflective params) |
-| Discovery: SQLi | `ghauri` | Modern blind SQLi on ID-like parameters |
-| Discovery: SSRF | `interactsh-client` | Self-hosted OOB listener for blind SSRF/XXE/RCE |
-| Discovery: WAF | `wafw00f` -> `whatwaf` | Identify WAF vendor -> test bypass techniques |
-| Discovery: XXE | Manual XML upload + Burp | Upload SVG/DOCX with XXE payload, check response |
-| Discovery: Deserialization | Manual cookie analysis + tools | Check for serialized data, test with ysoserial/phpggc |
-| Exploit: 403 | `byp4xx` or `nomore403` | 20+ bypass techniques automated |
-| Exploit: Takeover | `subzy` | Checks CNAME against 70+ vulnerable services |
-| Exploit: Cloud | `s3scanner` + `aws` CLI | Scan bucket permissions -> extract metadata credentials |
-| Exploit: Secrets | `trufflehog --only-verified` | Only verified working keys (no false positives) |
+**Interpret everything.** A "no" teaches you about the system. Update your model.
 
-### Session End Checklist
+**Chain relentlessly.** Two lows = one high. See [[A→B Chains]].
 
-- [ ] Save all Burp/Caido project files
-- [ ] Record any "weird but not yet exploitable" behaviors (future gadgets)
-- [ ] Update notes with failed attempts (don't re-test with same techniques)
-- [ ] Log findings with `/remember`
+---
+
+## THE TWO-QUESTION RULE
+
+Every finding has TWO independent questions. Answer BOTH:
+
+| Question | What to answer |
+|----------|----------------|
+| **TRIGGER** — "Can this path fire?" | Reachable? Attacker-invokable? Not trusted-actor-only? |
+| **IMPACT** — "If it fires, what's the harm?" | Victim loses what? How much? Permanently or recoverable? |
+
+**Rules:**
+1. Both halves get a written trace. Answering one and assuming the other is a process error.
+2. Impact is victim-harm, not attacker-profit.
+3. Three verdicts only: FINDING / OPEN LEAD / KILL. See [[Lead Ledger]].
+4. "Below the bar" is not a kill.
+5. Severity estimation never precedes the impact trace.
+
+---
+
+## 3RD EYE CHECKLIST
+
+### DON'T ASSUME
+- [ ] Did I actually test this, or am I assuming it's blocked?
+- [ ] Did I try different methods, headers, versions?
+- [ ] Did I test without auth before assuming auth is required?
+- [ ] Did I try the bypass before assuming the WAF blocks it?
+
+### UNDERSTAND BEFORE EXPLOITING
+- [ ] Do I know what framework/stack this uses?
+- [ ] Do I know how auth works here?
+- [ ] Have I read the disclosed reports for this program?
+- [ ] Do I understand what the developer believed when building this?
+
+### VALIDATE BEFORE REPORTING
+- [ ] **Trigger proven?** Not "could theoretically" — actually fires.
+- [ ] **Impact traced?** Not "might lead to" — victim loses specific thing.
+- [ ] **Reproducible?** Others can follow my steps.
+- [ ] **Not already known?** Checked disclosed reports and CVEs.
+- [ ] **In scope?** Program accepts this bug class.
+- [ ] **Real victim?** Not self-XSS, not admin-only, not unusual actions.
+- [ ] **Business impact?** Quantified: "N users", "$X at risk".
+
+**One wrong answer = kill the finding.** See [[Triage]].
+
+### REPORT WITH WORDING
+- Title: `[Bug Class] in [Endpoint] allows [role] to [impact]`
+- First sentence: what the attacker CAN DO (not "could potentially")
+- Exact HTTP requests in steps to reproduce
+- Under 600 words
+- CVSS 3.1 that MATCHES actual impact
+- No "theoretical" language — prove it or drop it
+
+See [[Report Writing]].
+
+---
+
+## WHEN STUCK
+
+| Stuck because... | Do this |
+|------------------|---------|
+| Can't find subdomains | Try different sources, Google Dorks. See [[Web2 Recon]] |
+| Found subdomain, don't know what to test | Map it first. See [[Trust Map]] |
+| Testing but nothing works | Switch vuln class (20-min rule). See [[Vuln Classes]] |
+| Found bug, impact is low | Chain it. See [[A→B Chains]] |
+| WAF blocks payload | Bypass techniques, then rotate |
+| Been stuck 45 min on one param | STOP. Rabbit hole. Move on. |
+| New endpoint discovered | Map it first, then attack. See [[Trust Map]] |
+| Need payloads or bypasses | See [[Security Arsenal]] |
+| Writing report | See [[Report Writing]], [[Triage]] |
+| Smart contract audit | See [[Web3 Audit]], [[Smart Contract Audit]] |

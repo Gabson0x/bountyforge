@@ -5,8 +5,10 @@ Contains: 10 grep blocks for all major vuln classes, tier ranking, protocol-spec
 ---
 
 # GREP ARSENAL — MASTER REFERENCE
-> All grep commands in one place. Run in the first 30 minutes of any new target.
-> Replaces: 03-grep-surface-map, 14-grep-master-patterns + grep sections from 04-13
+
+All grep commands in one place. Run in the first 30 minutes of any new target.
+
+See also: [[Web3 Audit]], [[Web3 Bug Classes]], [[Methodology]], [[Trust Map]], [[Web3 Hunt Foundation]]
 
 ---
 

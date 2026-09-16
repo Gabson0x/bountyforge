@@ -1,48 +1,187 @@
-# Methodology — 5 Pillars, 6 Rules, 5 Questions
+# Methodology — Trust-First Iterative Hunting
 
-**The architecture-first spine of every hunt.** Always loaded. This is the structure that
-keeps the AI from "going off in all directions" — it forces the hunt to run *through* the
-engine (the `tools/` and the maps in `state/`), not on instinct alone.
+**The trust-centric spine of every hunt.** Always loaded. This is the structure that
+keeps the AI focused on where systems actually break: trust boundaries. Every vulnerability
+is fundamentally a **trust violation** — the system trusted something it shouldn't have, or
+failed to verify something it must.
+
+See also: [[Trust Map]], [[Vuln Classes]], [[A→B Chains]], [[Wild Mode]], [[Lead Ledger]]
 
 > Wild-mode (`references/wild-mode.md`) is the *mindset* applied **within** this structure:
-> no ceilings, payload-first, chain-or-die. This document is the *skeleton*: five maps and
-> six rules that tell you **where** to point that mindset.
+> no ceilings, payload-first, chain-or-die. This document is the *skeleton*: trust mapping,
+> iterative hypothesis generation, and information-gain prioritization that tell you **where**
+> to point that mindset.
 
 ---
 
-## The Core Shift: Architecture, Not Endpoints
+## The Core Principle: Trust Is the Attack Surface
 
-Don't start with individual endpoints. Start by mapping the whole system, then hunt the
-**gaps and intersections**. The gold is almost never a single endpoint — it's the boundary
-between two things, the state transition the developer forgot to validate, or the interface
-that wasn't updated when its sibling was.
+Every bug is a trust violation. The system trusted:
+- **Identity** it shouldn't have (IDOR, privilege escalation, auth bypass) → [[Vuln Classes]]
+- **State** it shouldn't have (race conditions, TOCTOU, state machine bypass) → [[Vuln Classes]]
+- **Input** it shouldn't have (injection, deserialization, SSTI) → [[Vuln Classes]]
+- **Intent** it shouldn't have (business logic abuse, economic manipulation) → [[Vuln Classes]]
 
-> **No map → no hunt.** An endpoint that isn't located in one of the 5 maps is not yet a
-> target. Map it first, then probe. This single constraint is what stops the AI from going
+**Map trust first. Hunt violations second.** See [[Trust Map]].
+
+> **No trust map → no hunt.** An endpoint that isn't located in the trust graph is not yet a
+> target. Map trust first, then probe. This single constraint is what stops the AI from going
 > off in all directions.
 
 ---
 
-## The Hunt Loop (10 steps)
+## The Hunt Loop — Trust-First Iterative Flow
 
-Every hunt runs this loop, in order:
+Every hunt runs this loop. It is **iterative, not linear** — you cycle through hypothesis
+generation, testing, and model refinement until impact is proven or the surface is exhausted.
 
-1. **BUILD MAPS** — all 5 pillars (P1→P5).
-2. **IDENTIFY GAPS** — where assets differ (P1), where trust crosses a boundary (P2), where
-   an authz cell is `untested` (P3), where an illegal state transition exists (P4), where a
-   capability has authority/economic reach (P5).
-3. **SELECT AN INTERSECTION** — `identity × object × state × boundary × interface`.
-4. **FORM HYPOTHESIS** — a specific "attacker can X → causing Y" claim, expressible as a map
-   mutation (Rule 2).
-5. **MUTATE ONE VARIABLE** — change exactly one thing (`user_id`, `role`, version, state,
-   amount, recipient, method, content-type, token…).
-6. **OBSERVE DELTA** — what changed in the response/behavior? Log the "no"s too (Rule 7 in
-   wild-mode).
-7. **REFUTE OR ESCALATE** — try to kill your own finding (`tools/refutation.py`); if it
-   survives, escalate.
-8. **CHAIN CAPABILITIES** — what does this lead combine with? (`tools/kill_chain.py`)
-9. **VALIDATE IMPACT** — real harm to a real victim? (supervisor gates)
-10. **REPORT** — only findings that survive the gates.
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│   MAP TRUST ENDPOINTS                                                           │
+│         ↓                                                                       │
+│   OBSERVE                                                                       │
+│         ↓                                                                       │
+│   MODEL THE SYSTEM                                                              │
+│         ↓                                                                       │
+│   GENERATE HYPOTHESES                                                          │
+│         ↓                                                                       │
+│   RANK BY INFORMATION GAIN                                                     │
+│         ↓                                                                       │
+│   TEST MINIMALLY                                                               │
+│         ↓                                                                       │
+│   INTERPRET RESPONSE                                                           │
+│         ↓                                                                       │
+│   GENERATE NEW HYPOTHESES  ◄──────────────────────────────┐                   │
+│         ↓                                                   │                   │
+│   CHAIN PRIMITIVES                                          │                   │
+│         ↓                                                   │                   │
+│   VALIDATE IMPACT                                           │                   │
+│         ↓                                                   │                   │
+│   KILL / ESCALATE / REPORT ──► If OPEN LEAD, loop back ────┘                   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Step 1: MAP TRUST ENDPOINTS
+
+Map every trust boundary before probing anything. A trust endpoint is anywhere the system
+accepts input, makes authorization decisions, or delegates to another service.
+
+**Trust endpoint categories:**
+- **Identity trust** — auth tokens, session cookies, API keys, JWT claims, OAuth flows
+- **Input trust** — user-supplied data that influences logic (params, headers, body, file)
+- **State trust** — stored state the system believes (database records, cache, file system)
+- **Service trust** — upstream/downstream services (webhooks, APIs, oracles, payment processors)
+- **User trust** — client-side data the server accepts without verification (fingerprints, UA, IPs)
+
+**Output:** `state/sessions/{target}/maps/trust.md` — the trust graph. Every node is an
+entity; every edge is a trust relationship with `trust_type`, `strength`, `boundary_crossed`.
+
+### Step 2: OBSERVE
+
+Before forming hypotheses, **observe** the system's behavior:
+- Send benign requests and note response patterns
+- Map error behaviors (what reveals internals?)
+- Identify timing differences (what's slower?)
+- Note which trust endpoints actually influence behavior
+- Watch for anomalies in naming, structure, or response format
+
+**Goal:** Build a mental model of what the developer *believed* when building this.
+
+### Step 3: MODEL THE SYSTEM
+
+Synthesize observation into a **system model**:
+- Which trust endpoints are **externally accessible** vs **internal-only**?
+- Which trust endpoints are **protected by auth** vs **open**?
+- What **data flows** connect trust endpoints?
+- What **assumptions** does each trust boundary make?
+
+**Output:** Update the 5 maps with observed data. The model IS the hypothesis generator.
+
+### Step 4: GENERATE HYPOTHESES
+
+For each trust boundary, ask: **"What if this trust is misplaced?"**
+
+Hypothesis templates:
+- `user_a can access user_b's data via {endpoint} because {trust assumption is wrong}`
+- `Anonymous can invoke {admin_function} because {auth check is missing}`
+- `I can force state {X} by {action} because {validation is absent}`
+- `I can inject {payload} into {trust_endpoint} because {sanitization is missing}`
+
+**Every hypothesis must name the trust violation it exploits.**
+
+### Step 5: RANK BY INFORMATION GAIN
+
+Not all hypotheses are equal. Rank by **information gain** — how much does testing this
+hypothesis teach us about the system, regardless of whether it succeeds or fails?
+
+| Signal | Higher Rank | Lower Rank |
+|--------|-------------|------------|
+| Trust boundary type | Identity trust (auth/authz) | Input validation |
+| Potential impact | ATO, RCE, financial | Info disclosure, self-XSS |
+| Test cost | One request, no auth needed | Complex multi-step flow |
+| Novelty | Untested trust boundary | Similar to already-tested |
+| Chaining potential | Connects to other leads | Isolated |
+
+**Always test the highest-information-gain hypothesis first.** Even a "no" teaches us
+more about the system's assumptions than testing a low-value hypothesis teaches us.
+
+### Step 6: TEST MINIMALLY
+
+Fire the **minimum viable payload** to confirm or deny the hypothesis:
+- One request, one parameter change
+- No complex tooling yet — just curl/httpx/dalfox/ghauri
+- If the minimal test is ambiguous, escalate to deeper testing
+- If blocked, note the defense and try bypass
+
+**The goal is signal, not proof.** Proof comes in Step 9.
+
+### Step 7: INTERPRET RESPONSE
+
+Analyze the response against the hypothesis:
+- **Confirmed signal** → proceed to Step 8 (chain) and Step 9 (validate)
+- **Contradicted** → note what we learned about the system's assumptions
+- **Ambiguous** → mutate one variable and re-test (return to Step 6)
+- **Blocked** → identify the defense, try one bypass, then rotate
+
+**Every response teaches us something about the system model.** Update the maps.
+
+### Step 8: GENERATE NEW HYPOTHESES
+
+The system model has changed based on what we learned. Generate **new** hypotheses:
+- "If {endpoint} has no auth, maybe {sibling_endpoint} doesn't either"
+- "If {parameter} isn't validated, maybe {related_parameter} isn't either"
+- "If this trust boundary is weak, the adjacent one might be too"
+
+**This is where chains emerge.** The hypothesis generator is fed by every test result.
+
+### Step 9: CHAIN PRIMITIVES
+
+Combine confirmed signals into attack chains:
+- Read primitive + write primitive = ATO
+- SSRF + internal service discovery = RCE
+- IDOR + mass assignment = privilege escalation
+- Open redirect + OAuth = token theft
+
+**Two lows = one high.** Chain ruthlessly.
+
+### Step 10: VALIDATE IMPACT
+
+Run the finding through the gates. See [[Triage]]:
+- **Trigger proven?** (path fires, not just theoretical)
+- **Impact traced?** (victim loses what, how much, permanently or recoverable)
+- **Both halves answered?** (Q-TRIGGER and Q-IMPACT)
+
+If both halves are proven → **FINDING** (report it). See [[Report Writing]].
+If only one half proven → **OPEN LEAD** (persist, mutate, retest). See [[Lead Ledger]].
+If both halves refuted → **KILL** (with evidence).
+
+### Step 11: KILL / ESCALATE / REPORT
+
+- **KILL** — both trigger and impact refuted with evidence
+- **ESCALATE** — chain primitives to increase impact. See [[A→B Chains]].
+- **REPORT** — write the finding with platform-specific format. See [[Report Writing]].
 
 ---
 

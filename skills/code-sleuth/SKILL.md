@@ -3,8 +3,11 @@ name: code-sleuth
 description: Analyze EVM smart contracts for storage-safety vulnerabilities that can cause persistent state updates to be lost, overwritten, misdirected, or to collide across proxy or upgrade boundaries.
 ---
 
+# Code Sleuth — Storage Safety
 
-Focus on bugs involving:
+Analyze EVM smart contracts for storage-safety vulnerabilities.
+
+See also: [[Web3 Audit]], [[Smart Contract Audit]], [[Trust Map]], [[Methodology]]
 
 - memory vs storage confusion
 - lost writes (state mutated in memory but never persisted)

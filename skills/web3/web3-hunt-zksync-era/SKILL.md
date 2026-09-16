@@ -3,10 +3,11 @@ name: web3-hunt-zksync-era
 description: ZKsync Era (Immunefi) completed hunt — 0 findings after exhaustive 5-session audit. Use as a DEFENSE STUDY — learn what makes a protocol unhuntable, which patterns block all 10 bug classes, and when to abandon a target. Contains architecture breakdown, 25 tested attack vectors, and pre-dive scoring refinements for large L1 bridge protocols.
 ---
 
-# LIVE HUNT: ZKsync Era (Immunefi) — COMPLETED, 0 FINDINGS
+# LIVE HUNT: ZKsync Era — DEFENSE STUDY
 
-> **Outcome**: 0 submittable findings after 5+ sessions, 22+ agents, 25+ contracts, 25+ attack vectors
-> **Lesson**: This file exists as a DEFENSE STUDY — what a hardened protocol looks like, and when to stop hunting.
+0 findings after exhaustive 5-session audit. Learn what makes a protocol unhuntable.
+
+See also: [[Web3 Audit]], [[Methodology]], [[Web3 Bug Classes]], [[Trust Map]], [[Lead Ledger]]
 
 ---
 
